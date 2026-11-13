@@ -53,6 +53,10 @@
   .month { font-size: 15px; font-weight: 500; color: var(--ink); }
   .month::first-letter { text-transform: uppercase; }
   .nav { display: flex; gap: 4px; }
+  .sync { display: block; font-size: 12px; color: var(--faint); padding: 0; min-height: 16px; cursor: default; }
+  .sync[data-state="saving"] { color: var(--violet-2); }
+  .sync[data-state="ok"] { color: var(--inc); }
+  .sync[data-state="error"] { color: var(--exp); cursor: pointer; text-decoration: underline; }
   .nav button { width: 40px; height: 40px; border-radius: 50%; color: var(--muted); font-size: 20px; transition: background .15s, color .15s, transform .1s; }
   .nav button { background: var(--surface); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
   .nav button:hover { color: var(--ink); background: var(--raised); }
@@ -154,6 +158,21 @@
   .pv-list .dup { opacity: .35; }
   .loading { color: var(--muted); padding: 36px 0; text-align: center; }
 
+  .tag { font-size: 12px; color: var(--violet-2); background: var(--violet-tint); padding: 4px 10px; border-radius: 12px; }
+  .tip { display: grid; grid-template-columns: 3px 1fr; gap: 14px; padding: 10px 0; }
+  .tip + .tip { border-top: 1px solid var(--line); padding-top: 14px; }
+  .tip::before { content: ""; border-radius: 2px; background: var(--violet); }
+  .tip.warn::before { background: var(--exp); }
+  .tip.good::before { background: var(--inc); }
+  .tip b { display: block; font-weight: 500; margin-bottom: 3px; }
+  .tip p { margin: 0; color: var(--muted); font-size: 14px; }
+  .client { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; padding: 10px 0; }
+  .client + .client { border-top: 1px solid var(--line); }
+  .client .n { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .client .s { font-weight: 500; text-align: right; color: var(--inc); }
+  .client .meta { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; color: var(--faint); font-size: 13px; }
+  .client .meta .cbar { flex: 1; height: 4px; border-radius: 2px; background: var(--raised); overflow: hidden; }
+  .client .meta .cbar i { display: block; height: 100%; background: linear-gradient(90deg, #8A63FF, #B38BFF); border-radius: 2px; }
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 </head>
@@ -161,7 +180,7 @@
 <div class="bg" aria-hidden="true"></div>
 <div class="wrap">
   <header class="top">
-    <div class="month" id="periodTitle"></div>
+    <div><div class="month" id="periodTitle"></div><button class="sync" id="sync" aria-live="polite"></button></div>
     <div class="nav">
       <button id="prev" aria-label="Предыдущий месяц">‹</button>
       <button id="next" aria-label="Следующий месяц">›</button>
@@ -179,6 +198,11 @@
     <div class="alltime">На счету за всё время: <span id="allTime">0 ₽</span></div>
   </div>
 
+  <section class="glass" id="tipsSec">
+    <div class="sec-head"><h2>Советы</h2><span class="tag">по вашим данным</span></div>
+    <div id="tips"></div>
+  </section>
+
   <section class="glass">
     <div class="sec-head">
       <h2>По категориям</h2>
@@ -188,6 +212,11 @@
       </div>
     </div>
     <div id="cats"></div>
+  </section>
+
+  <section class="glass" id="clientsSec" hidden>
+    <div class="sec-head"><h2>Доходы по клиентам</h2></div>
+    <div id="clients"></div>
   </section>
 
   <section class="glass">
@@ -214,6 +243,8 @@
   </div>
   <input class="amount" id="amount" type="text" inputmode="decimal" placeholder="0 ₽" autocomplete="off" aria-label="Сумма">
   <div class="chips" id="catPicker"></div>
+  <input class="field" id="client" type="text" placeholder="Клиент или от кого пришли деньги" maxlength="40" aria-label="Клиент" list="clientList" autocomplete="off" hidden>
+  <datalist id="clientList"></datalist>
   <input class="field" id="note" type="text" placeholder="Комментарий" maxlength="60" aria-label="Комментарий">
   <input class="field" id="date" type="date" aria-label="Дата">
   <button class="btn btn-main" id="saveBtn">Сохранить</button>
@@ -252,62 +283,128 @@ const I = {salary:0, freelance:1, invest:2, gift:3, refund:4, sale:5, other:6, t
 const COLORS = ['#A98BFF','#7FB2F0','#8FD4B4','#E6C590','#D68FD6','#F0A3B0','#A9CC8E','#F2B48A','#7FD0E0','#C7A38F','#B5C77E','#9A97A6','#C9B4FF','#8CC7A8','#C9A86A','#B0BCE8'];
 const COLORS_INC = ['#8FD4B4','#9DC3E6','#D4BE7E','#E3A77F','#A9CC8E','#7FC4D4','#9AA3AE','#B8D4A0','#C7A38F'];
 
-// ---------- Storage (Telegram CloudStorage, fallback localStorage) ----------
-const CHUNK = 3900;
+// ---------- Storage ----------
+// Облако Telegram (CloudStorage) + копия в localStorage.
+// Лимит одной записи в облаке — 4096, а кириллица занимает 2 байта, поэтому режем по БАЙТАМ.
+// Пишем в запасной слот ('a' или 'b') и только потом переключаем указатель 'v':
+// если запись оборвётся, старые данные останутся целыми.
+const CHUNK_BYTES = 3000;
 const hasCloud = !!(tg && tg.CloudStorage && tg.isVersionAtLeast && tg.isVersionAtLeast('6.9'));
 
 function cloudGet(keys) {
-  return new Promise((res, rej) => tg.CloudStorage.getItems(keys, (e, v) => e ? rej(e) : res(v)));
+  return new Promise((res, rej) => tg.CloudStorage.getItems(keys, (e, v) => e ? rej(e) : res(v || {})));
+}
+async function cloudGetMany(keys) {
+  const out = {};
+  for (let i = 0; i < keys.length; i += 40) Object.assign(out, await cloudGet(keys.slice(i, i + 40)));
+  return out;
 }
 function cloudSet(k, v) {
-  return new Promise((res, rej) => tg.CloudStorage.setItem(k, v, (e) => e ? rej(e) : res()));
+  return new Promise((res, rej) => tg.CloudStorage.setItem(k, v, (e, ok) => e || ok === false ? rej(e || 'setItem failed') : res()));
 }
 function cloudDel(keys) {
-  return new Promise((res) => tg.CloudStorage.removeItems(keys, () => res()));
+  return new Promise((res) => keys.length ? tg.CloudStorage.removeItems(keys, () => res()) : res());
+}
+function chunkByBytes(str, max) {
+  const out = []; let cur = '', bytes = 0;
+  for (const ch of str) {
+    const c = ch.codePointAt(0), b = c < 0x80 ? 1 : c < 0x800 ? 2 : c < 0x10000 ? 3 : 4;
+    if (bytes + b > max) { out.push(cur); cur = ''; bytes = 0; }
+    cur += ch; bytes += b;
+  }
+  if (cur || !out.length) out.push(cur);
+  return out;
 }
 
-// compact row: [id, type(0 exp / 1 inc), amount, catIndex, timestamp(sec), note]
+// строка: [id, тип(0 расход / 1 доход), сумма, категория, время(сек), комментарий, ключ_импорта, клиент]
 let tx = [];
+let cloudPtr = null;   // {slot, n, ts}
 
-async function load() {
-  try {
-    if (hasCloud) {
-      const meta = await cloudGet(['n']);
-      const n = parseInt(meta.n || '0', 10);
-      if (n > 0) {
-        const keys = Array.from({length: n}, (_, i) => 'd' + i);
-        const parts = await cloudGet(keys);
-        tx = JSON.parse(keys.map(k => parts[k] || '').join('') || '[]');
-      }
-    } else {
-      tx = JSON.parse(localStorage.getItem('fin_tx') || '[]');
-    }
-  } catch (e) { console.error(e); tx = []; }
+function readLocal() {
+  try { return {rows: JSON.parse(localStorage.getItem('fin_tx') || 'null'), ts: +(localStorage.getItem('fin_ts') || 0)}; }
+  catch (e) { return {rows: null, ts: 0}; }
+}
+function writeLocal(data, ts) {
+  try { localStorage.setItem('fin_tx', data); localStorage.setItem('fin_ts', String(ts)); } catch (e) {}
 }
 
-let saving = Promise.resolve();
+async function readCloud() {
+  const meta = await cloudGet(['v', 'n']);
+  if (meta.v) {                                   // новый формат: "a:5:1731500000000"
+    const [slot, n, ts] = meta.v.split(':');
+    const keys = Array.from({length: +n}, (_, i) => slot + i);
+    const parts = await cloudGetMany(keys);
+    if (keys.some(k => parts[k] === undefined || parts[k] === null)) throw new Error('часть данных не найдена');
+    cloudPtr = {slot, n: +n, ts: +ts};
+    return {rows: JSON.parse(keys.map(k => parts[k]).join('') || '[]'), ts: +ts};
+  }
+  const n = parseInt(meta.n || '0', 10);          // старый формат: n + d0..dN
+  if (n > 0) {
+    const keys = Array.from({length: n}, (_, i) => 'd' + i);
+    const parts = await cloudGetMany(keys);
+    try { return {rows: JSON.parse(keys.map(k => parts[k] || '').join('')), ts: 0, legacy: n}; }
+    catch (e) { return {rows: null, ts: 0, legacy: n}; }
+  }
+  return {rows: null, ts: 0};
+}
+
+let legacyKeys = 0;
+async function load() {
+  const local = readLocal();
+  let cloud = {rows: null, ts: 0};
+  if (hasCloud) {
+    try { cloud = await readCloud(); legacyKeys = cloud.legacy || 0; }
+    catch (e) { console.error(e); setSync('error', 'Не удалось загрузить из облака Telegram, показываю копию с телефона'); }
+  }
+  // берём более свежую версию
+  if (cloud.rows && (cloud.ts >= local.ts || !local.rows)) tx = cloud.rows;
+  else if (local.rows) { tx = local.rows; if (hasCloud && local.ts > cloud.ts) persist(); }
+  else tx = [];
+}
+
+let saving = Promise.resolve(), pendingSaves = 0;
 function persist() {
   const data = JSON.stringify(tx);
+  const ts = Date.now();
+  writeLocal(data, ts);
+  if (!hasCloud) return Promise.resolve();
+  pendingSaves++;
+  setSync('saving');
+  try { tg.enableClosingConfirmation(); } catch (e) {}
   saving = saving.then(async () => {
     try {
-      if (hasCloud) {
-        const old = parseInt((await cloudGet(['n'])).n || '0', 10);
-        const chunks = [];
-        for (let i = 0; i < data.length; i += CHUNK) chunks.push(data.slice(i, i + CHUNK));
-        for (let i = 0; i < chunks.length; i++) await cloudSet('d' + i, chunks[i]);
-        await cloudSet('n', String(chunks.length));
-        if (old > chunks.length) {
-          await cloudDel(Array.from({length: old - chunks.length}, (_, i) => 'd' + (chunks.length + i)));
-        }
-      } else {
-        localStorage.setItem('fin_tx', data);
-      }
+      const chunks = chunkByBytes(data, CHUNK_BYTES);
+      const slot = cloudPtr && cloudPtr.slot === 'a' ? 'b' : 'a';
+      await Promise.all(chunks.map((c, i) => cloudSet(slot + i, c)));
+      await cloudSet('v', `${slot}:${chunks.length}:${ts}`);
+      const old = cloudPtr;
+      cloudPtr = {slot, n: chunks.length, ts};
+      // уборка: старый слот и старый формат
+      const junk = [];
+      if (old) for (let i = 0; i < old.n; i++) junk.push(old.slot + i);
+      for (let i = chunks.length; i < chunks.length + 5; i++) junk.push(slot + i);
+      if (legacyKeys) { for (let i = 0; i < legacyKeys; i++) junk.push('d' + i); junk.push('n'); legacyKeys = 0; }
+      cloudDel(junk);
+      if (--pendingSaves === 0) setSync('ok');
     } catch (e) {
       console.error(e);
-      if (tg) tg.showAlert('Не удалось сохранить данные. Проверьте соединение.');
+      pendingSaves = Math.max(0, pendingSaves - 1);
+      setSync('error', 'Не сохранилось в облако: ' + (e && e.message || e) + '. Нажмите, чтобы повторить.');
+    } finally {
+      if (pendingSaves === 0) { try { tg.disableClosingConfirmation(); } catch (e) {} }
     }
   });
   return saving;
+}
+
+function setSync(state, msg) {
+  const el = document.getElementById('sync');
+  if (!el) return;
+  el.dataset.state = state;
+  el.textContent = state === 'saving' ? 'Сохраняю…' : state === 'ok' ? 'Сохранено' : state === 'error' ? 'Ошибка сохранения' : '';
+  el.title = msg || '';
+  el.onclick = state === 'error' ? () => { if (msg && tg) tg.showAlert(msg); persist(); } : null;
+  if (state === 'ok') { clearTimeout(setSync.t); setSync.t = setTimeout(() => { if (el.dataset.state === 'ok') el.textContent = ''; }, 2500); }
 }
 
 // ---------- Helpers ----------
@@ -331,6 +428,159 @@ function monthTx() {
   return tx.filter(r => { const d = new Date(r[4] * 1000); return d.getFullYear() === viewY && d.getMonth() === viewM; });
 }
 
+// ---------- Клиенты ----------
+// r[7] — клиент; если не указан, пробуем достать из описания операции
+function guessClient(text) {
+  if (!text) return '';
+  const t = text.replace(/\s+/g, ' ').trim();
+  let m = t.match(/(?:^|\s)(ООО|ИП|АО|ПАО|ЗАО|НКО|ФГУП|МУП)\s*[«"']?([^«»"',.]{2,40})/i);
+  if (m) return (m[1].toUpperCase() + ' ' + m[2]).trim().replace(/\s+(Москва|RUS|RU)$/i, '');
+  m = t.match(/(?:перевод|зачисление|поступление)[^]*?(?:^|\s)от\s+(.{2,40})/i);
+  if (m) return m[1].replace(/[,;]+$/, '').trim();
+  m = t.match(/^([А-ЯЁ][а-яё]+(?:\s[А-ЯЁ][а-яё]+)?\s[А-ЯЁ]\.)$/);
+  if (m) return m[1];
+  return '';
+}
+const clientOf = r => r[1] === 1 ? (r[7] || guessClient(r[5]) || '') : '';
+function knownClients() {
+  const s = new Map();
+  tx.forEach(r => { const c = clientOf(r); if (c) s.set(c, (s.get(c) || 0) + 1); });
+  return [...s.entries()].sort((a, b) => b[1] - a[1]).map(e => e[0]);
+}
+
+function renderClients(list, prevList) {
+  const sec = document.getElementById('clientsSec');
+  const sums = new Map(), counts = new Map(), prev = new Map();
+  let total = 0;
+  list.filter(r => r[1] === 1).forEach(r => {
+    const c = clientOf(r) || 'Без клиента';
+    sums.set(c, (sums.get(c) || 0) + r[2]); counts.set(c, (counts.get(c) || 0) + 1); total += r[2];
+  });
+  prevList.filter(r => r[1] === 1).forEach(r => { const c = clientOf(r) || 'Без клиента'; prev.set(c, (prev.get(c) || 0) + r[2]); });
+  const named = [...sums.keys()].filter(c => c !== 'Без клиента');
+  sec.hidden = !named.length;
+  if (!named.length) return;
+  document.getElementById('clients').innerHTML = [...sums.entries()].sort((a, b) => b[1] - a[1]).map(([c, s]) => {
+    const pct = total ? Math.round(s / total * 100) : 0;
+    const p = prev.get(c) || 0;
+    const delta = p ? Math.round((s - p) / p * 100) : null;
+    const n = counts.get(c);
+    return `<div class="client"><span class="n">${esc(c)}</span><span class="s">+${fmt(s)}</span>
+      <div class="meta"><span>${n} ${plural(n, 'платёж', 'платежа', 'платежей')}</span><span class="cbar"><i style="width:${pct}%"></i></span><span>${pct}%${delta !== null ? ` · ${delta >= 0 ? '+' : ''}${delta}% к прошлому` : ''}</span></div></div>`;
+  }).join('');
+}
+
+// ---------- Советы (правила личных финансов) ----------
+function monthOf(y, m) { return tx.filter(r => { const d = new Date(r[4] * 1000); return d.getFullYear() === y && d.getMonth() === m; }); }
+function sumBy(list, t) { return list.filter(r => r[1] === t).reduce((s, r) => s + r[2], 0); }
+function catSums(list) { const o = {}; list.filter(r => r[1] === 0).forEach(r => o[r[3]] = (o[r[3]] || 0) + r[2]); return o; }
+const catName = i => (CATS.exp[i] || ['', 'Другое'])[1];
+const monthName = (y, m) => ['январе','феврале','марте','апреле','мае','июне','июле','августе','сентябре','октябре','ноябре','декабре'][m];
+
+function buildTips(list, prevList) {
+  const tips = [];   // {w: вес, cls, t: заголовок, p: текст}
+  const inc = sumBy(list, 1), exp = sumBy(list, 0);
+  const isCurrent = viewY === now.getFullYear() && viewM === now.getMonth();
+  const daysIn = new Date(viewY, viewM + 1, 0).getDate();
+  const dayNow = isCurrent ? now.getDate() : daysIn;
+  const py = viewM ? viewY : viewY - 1, pm = viewM ? viewM - 1 : 11;
+  const prevName = monthName(py, pm);
+
+  if (!list.length) return [{w: 1, cls: '', t: 'Пока нечего анализировать', p: 'Добавьте операции или загрузите выписку из СберОнлайн, и здесь появится разбор ваших трат.'}];
+
+  // 1. Норма сбережений
+  if (inc > 0) {
+    const rate = (inc - exp) / inc;
+    if (rate < 0) tips.push({w: 100, cls: 'warn', t: `Расходы больше доходов на ${fmt(exp - inc)}`,
+      p: 'Месяц уходит в минус. Найдите 1–2 категории ниже, где можно сократить траты, и отложите крупные покупки до следующего месяца.'});
+    else if (rate < 0.1) tips.push({w: 80, cls: 'warn', t: `Откладывается всего ${Math.round(rate * 100)}% дохода`,
+      p: `Ориентир финансистов — от 10–20%. Это ${fmt(inc * 0.15)} в месяц при вашем доходе. Удобнее всего переводить их на накопительный счёт сразу после поступления денег.`});
+    else if (rate >= 0.2) tips.push({w: 40, cls: 'good', t: `Вы сохраняете ${Math.round(rate * 100)}% дохода`,
+      p: `Это выше рекомендуемых 20%. Свободные ${fmt(inc - exp)} лучше не держать на карте: положите их на вклад или накопительный счёт, чтобы на них начислялись проценты.`});
+  }
+
+  // 2. Рост категорий относительно прошлого месяца
+  const cur = catSums(list), prev = catSums(prevList);
+  // сравниваем с ВСЕМ прошлым месяцем: так разовые платежи (аренда) не дают ложных тревог
+  let worst = null;
+  Object.keys(cur).forEach(c => {
+    const p = prev[c] || 0, v = cur[c];
+    if (p >= 500 && v - p >= 1000 && v / p >= 1.25) {
+      const g = v / p - 1;
+      if (!worst || v - p > worst.diff) worst = {c, v, g, diff: v - p};
+    }
+  });
+  if (worst) tips.push({w: 90, cls: 'warn', t: `«${catName(worst.c)}»: +${Math.round(worst.g * 100)}% к прошлому месяцу`,
+    p: `Уже ${fmt(worst.v)}, это на ${fmt(worst.diff)} больше, чем за весь прошлый месяц. Посмотрите операции в этой категории: обычно рост дают несколько крупных покупок или частые мелкие.`});
+
+  // 3. Самая затратная категория (кроме жилья)
+  const top = Object.entries(cur).filter(([c]) => +c !== E.home).sort((a, b) => b[1] - a[1])[0];
+  if (top && exp > 0 && top[1] / exp >= 0.3)
+    tips.push({w: 60, cls: '', t: `Больше всего денег уходит на «${catName(top[0])}»`,
+      p: `${fmt(top[1])}, это ${Math.round(top[1] / exp * 100)}% всех расходов. Попробуйте задать на эту категорию месячный лимит, например ${fmt(Math.round(top[1] * 0.85 / 100) * 100)}, и следить за ним.`});
+
+  // 4. Кафе и доставка
+  if (cur[E.cafe] && exp > 0 && cur[E.cafe] / exp >= 0.12)
+    tips.push({w: 55, cls: '', t: 'Кафе и доставка — заметная статья',
+      p: `${fmt(cur[E.cafe])} (${Math.round(cur[E.cafe] / exp * 100)}% расходов). Если готовить дома хотя бы половину этих раз, получится экономить около ${fmt(cur[E.cafe] * 0.35)} в месяц.`});
+
+  // 5. Мелкие траты
+  const small = list.filter(r => r[1] === 0 && r[2] < 500);
+  const smallSum = small.reduce((s, r) => s + r[2], 0);
+  if (small.length >= 15 && smallSum >= 3000)
+    tips.push({w: 50, cls: '', t: `${small.length} мелких покупок на ${fmt(smallSum)}`,
+      p: 'Траты до 500 ₽ по отдельности незаметны, но вместе это ощутимая сумма. Кофе с собой, перекусы и мелочи у кассы — первое, что стоит пересмотреть.'});
+
+  // 6. Прогноз до конца месяца
+  if (isCurrent && dayNow >= 5 && dayNow < daysIn - 1 && exp > 0) {
+    const forecast = exp / dayNow * daysIn;
+    const prevExp = sumBy(prevList, 0);
+    tips.push({w: prevExp && forecast > prevExp * 1.1 ? 70 : 30, cls: prevExp && forecast > prevExp * 1.1 ? 'warn' : '',
+      t: `Прогноз расходов на месяц: ${fmt(Math.round(forecast / 100) * 100)}`,
+      p: `При текущем темпе ${fmt(Math.round(exp / dayNow))} в день.` + (prevExp ? ` В ${prevName} вы потратили ${fmt(prevExp)}.` : '')});
+  }
+
+  // 7. Регулярные платежи (подписки)
+  const subs = {};
+  for (let k = 0; k < 3; k++) {
+    const y = viewM - k < 0 ? viewY - 1 : viewY, m = (viewM - k + 12) % 12;
+    monthOf(y, m).filter(r => r[1] === 0 && r[5] && r[2] < 3000).forEach(r => {
+      const key = r[5].toLowerCase().replace(/[\d*#]+/g, '').trim().slice(0, 24);
+      const s = (subs[key] = subs[key] || {name: r[5], months: new Set(), amt: r[2], amts: []}); s.months.add(m); s.amts.push(r[2]);
+    });
+  }
+  const recurring = Object.values(subs).filter(s => s.months.size >= 2 && Math.max(...s.amts) / Math.min(...s.amts) <= 1.1);
+  if (recurring.length) {
+    const monthly = recurring.reduce((s, r) => s + r.amt, 0);
+    tips.push({w: 45, cls: '', t: `Регулярные платежи: ${fmt(monthly)} в месяц`,
+      p: `${recurring.slice(0, 4).map(r => r.name).join(', ')}${recurring.length > 4 ? ' и другие' : ''}. За год это ${fmt(monthly * 12)}. Проверьте, всеми ли подписками вы пользуетесь.`});
+  }
+
+  // 8. Зависимость от одного клиента
+  const byClient = new Map();
+  list.filter(r => r[1] === 1).forEach(r => { const c = clientOf(r); if (c) byClient.set(c, (byClient.get(c) || 0) + r[2]); });
+  const topClient = [...byClient.entries()].sort((a, b) => b[1] - a[1])[0];
+  if (topClient && inc > 0 && byClient.size >= 1 && topClient[1] / inc >= 0.6 && inc >= 20000)
+    tips.push({w: 65, cls: 'warn', t: `${Math.round(topClient[1] / inc * 100)}% дохода — от одного клиента`,
+      p: `Почти всё пришло от «${topClient[0]}». Если этот источник пропадёт, доход резко упадёт. Подушка безопасности должна быть больше, и стоит искать ещё 1–2 постоянных клиента.`});
+
+  // 9. Финансовая подушка
+  const months3 = [0, 1, 2].map(k => sumBy(monthOf(viewM - k < 0 ? viewY - 1 : viewY, (viewM - k + 12) % 12), 0)).filter(Boolean);
+  if (months3.length >= 2) {
+    const avg = months3.reduce((a, b) => a + b, 0) / months3.length;
+    tips.push({w: 20, cls: '', t: `Подушка безопасности: от ${fmt(Math.round(avg * 3 / 1000) * 1000)}`,
+      p: `Ваши средние расходы — ${fmt(Math.round(avg))} в месяц. Финансисты советуют держать запас на 3–6 таких месяцев на отдельном счёте, к которому легко получить доступ.`});
+  }
+
+  if (!tips.length) tips.push({w: 1, cls: 'good', t: 'Месяц выглядит ровно', p: 'Резких перекосов в тратах нет. Продолжайте записывать операции, и советы станут точнее.'});
+  return tips.sort((a, b) => b.w - a.w).slice(0, 4);
+}
+
+function renderTips(list, prevList) {
+  document.getElementById('tips').innerHTML = buildTips(list, prevList)
+    .map(t => `<div class="tip ${t.cls}"><div><b>${esc(t.t)}</b><p>${esc(t.p)}</p></div></div>`).join('');
+}
+
 // ---------- Render ----------
 const catColor = (k, i) => (k === 'inc' ? COLORS_INC : COLORS)[i % (k === 'inc' ? COLORS_INC : COLORS).length];
 const money = n => fmtNum(Math.abs(n));
@@ -340,6 +590,9 @@ function render() {
   document.getElementById('periodTitle').textContent = title;
 
   const list = monthTx();
+  const prevList = monthOf(viewM ? viewY : viewY - 1, viewM ? viewM - 1 : 11);
+  renderTips(list, prevList);
+  renderClients(list, prevList);
   let inc = 0, exp = 0;
   list.forEach(r => r[1] === 1 ? inc += r[2] : exp += r[2]);
   const bal = inc - exp;
@@ -407,6 +660,7 @@ function renderCatPicker() {
   document.getElementById('catPicker').innerHTML = CATS[formType].map((c, i) =>
     `<button class="chip ${i === formCat ? 'on' : ''}" data-i="${i}"><i style="background:${catColor(formType, i)}"></i>${c[1]}</button>`).join('');
   document.querySelectorAll('#typeTabs button').forEach(b => b.classList.toggle('on', b.dataset.t === formType));
+  document.getElementById('client').hidden = formType !== 'inc';
 }
 
 function openSheet(row) {
@@ -416,6 +670,8 @@ function openSheet(row) {
   document.getElementById('sheetTitle').textContent = row ? 'Редактирование' : 'Новая операция';
   document.getElementById('amount').value = row ? String(row[2]).replace('.', ',') : '';
   document.getElementById('note').value = row ? row[5] || '' : '';
+  document.getElementById('client').value = row ? row[7] || '' : '';
+  document.getElementById('clientList').innerHTML = knownClients().map(c => `<option value="${esc(c)}">`).join('');
   const defDate = row ? new Date(row[4] * 1000)
     : (viewY === now.getFullYear() && viewM === now.getMonth() ? new Date() : new Date(viewY, viewM, 1));
   document.getElementById('date').value = toInputDate(defDate);
@@ -444,13 +700,14 @@ function save() {
   const [y, m, d] = dv ? dv.split('-').map(Number) : [now.getFullYear(), now.getMonth() + 1, now.getDate()];
   const ts = Math.floor(new Date(y, m - 1, d, 12).getTime() / 1000);
   const note = document.getElementById('note').value.trim().slice(0, 60);
+  const client = formType === 'inc' ? document.getElementById('client').value.trim().slice(0, 40) : '';
   const t = formType === 'inc' ? 1 : 0;
 
   if (editingId) {
     const r = tx.find(x => x[0] === editingId);
-    if (r) { r[1] = t; r[2] = amount; r[3] = formCat; r[4] = ts; r[5] = note; }
+    if (r) { r[1] = t; r[2] = amount; r[3] = formCat; r[4] = ts; r[5] = note; r[6] = r[6] || ''; r[7] = client; }
   } else {
-    tx.push([Date.now(), t, amount, formCat, ts, note]);
+    tx.push([Date.now(), t, amount, formCat, ts, note, '', client]);
   }
   // jump to month of the saved operation
   viewY = y; viewM = m - 1;
@@ -585,7 +842,7 @@ const EXP_RULES = [
   [E.transport, RX('транспорт|такси|taxi|uber|yandex\\s?go|яндекс\\s?go|метрополит|mosmetro|тройка|troika|ржд|rzd|аэрофлот|aeroflot|авиа|победа|pobeda|s7|автобус|парковк|parking|whoosh|urent|делимобил|каршеринг|citydrive|belkacar')],
   [E.cafe, RX('ресторан|кафе|cafe|кофе|coffee|кофейн|фастфуд|фаст-фуд|быстрое питание|kfc|ростикс|burger|бургер|макдон|вкусно и точка|vkusno|теремок|шоколадниц|додо|dodo|пицц|pizza|суши|sushi|яндекс еда|eda\\.yandex|delivery club|столов|starbucks|cofix|surf coffee')],
   [E.food, RX('супермаркет|продукт|магнит|magnit|пят[её]рочк|pyaterochka|перекр[её]ст|perekrestok|ашан|auchan|лента|lenta|вкусвилл|vkusvill|дикси|dixy|азбука вкуса|глобус|globus|самокат|samokat|окей|o.key|spar|fix price|фикс прайс|красное.{0,3}белое|krasnoe|бристоль|чижик|магнолия|верный|metro c&c|метро кэш|ozon fresh|купер|kuper|сбермаркет|sbermarket')],
-  [E.utils, RX('коммунал|жкх|связь|интернет|мобильн|\\bмтс\\b|\\bmts\\b|билайн|beeline|мегафон|megafon|tele2|теле2|ростелеком|rostelecom|электроэнерг|мосэнерго|энергосбыт|водоканал|квартплат|yota|сбермобайл|т-мобайл')],
+  [E.utils, RX('коммунал|жкх|связь|интернет|мобильн|(?:^|[^а-яё])мтс(?![а-яё])|\\bmts\\b|билайн|beeline|мегафон|megafon|tele2|теле2|ростелеком|rostelecom|электроэнерг|мосэнерго|энергосбыт|водоканал|квартплат|yota|сбермобайл|т-мобайл')],
   [E.health, RX('здоровье|аптек|apteka|клиник|медицин|стоматолог|красот|салон|ригла|горздрав|eapteka|лаборатор|инвитро|invitro|гемотест|косметик|золотое яблоко|летуаль|рив гош|барбер|barber')],
   [E.clothes, RX('одежд|обув|аксессуар|zara|uniqlo|спортмастер|sportmaster|gloria jeans|befree|o.stin|остин|lamoda|ламода|reserved|love republic|zarina|befree|кари|kari|детский мир')],
   [E.house, RX('все для дома|для дома|дом и ремонт|ремонт|леруа|lemana|леман|икеа|ikea|hoff|\\bobi\\b|петрович|максидом|строител|мебел|хозтовар|бытовая техник|м\\.видео|mvideo|эльдорадо|eldorado|dns|днс')],
@@ -631,7 +888,7 @@ async function handleFile(file) {
       const key = hashKey([+o.d, o.amtStr, isInc ? 1 : 0, desc || o.cat].join('|'));
       const note = (desc || o.cat).slice(0, 60);
       return {row: [Date.now() * 1000 + (seq++), isInc ? 1 : 0, Math.round(o.amount * 100) / 100,
-                    categorize(text, isInc), Math.floor(+o.d / 1000), note, key],
+                    categorize(text, isInc), Math.floor(+o.d / 1000), note, key, isInc ? guessClient(desc) : ''],
               dup: existing.has(key)};
     });
     // убираем дубли внутри самой выписки
@@ -673,8 +930,8 @@ function doImport() {
   tx.push(...fresh);
   const newest = fresh.reduce((m, r) => Math.max(m, r[4]), 0);
   if (newest) { const d = new Date(newest * 1000); viewY = d.getFullYear(); viewM = d.getMonth(); }
-  persist(); haptic('success'); closeSheet(); render();
-  if (tg) tg.showAlert(`Добавлено: ${fresh.length} ${plural(fresh.length, 'операция', 'операции', 'операций')}`);
+  closeSheet(); render();
+  persist().then(() => { haptic('success'); if (tg) tg.showAlert(document.getElementById('sync').dataset.state === 'error' ? 'Операции добавлены, но в облако Telegram не сохранились. Нажмите «Ошибка сохранения» вверху, чтобы повторить.' : `Сохранено: ${fresh.length} ${plural(fresh.length, 'операция', 'операции', 'операций')}`); });
 }
 
 function showParseFail() {
