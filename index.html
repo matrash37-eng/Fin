@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<meta name="theme-color" content="#15171B">
+<meta name="theme-color" content="#000000">
 <title>Финансы</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -11,22 +11,26 @@
 <link href="https://fonts.googleapis.com/css2?family=Onest:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
-    --ground: #15171B;
-    --surface: #1E2126;
-    --raised: #262A30;
-    --line: #2A2E35;
-    --ink: #ECEAE6;
-    --muted: #8B9099;
-    --faint: #5E636B;
+    --ground: #000000;
+    --surface: rgba(255,255,255,.06);
+    --raised: rgba(255,255,255,.11);
+    --line: rgba(255,255,255,.09);
+    --ink: #F2F0F7;
+    --muted: #9A97A6;
+    --faint: #66636F;
     --inc: #8FD4B4;
-    --exp: #E8A3A0;
-    --focus: #A9C7F0;
+    --exp: #F0A3B0;
+    --violet: #9D7BFF;
+    --violet-2: #C4A8FF;
+    --violet-tint: rgba(157,123,255,.18);
+    --focus: #B9A0FF;
+    --glass: rgba(14,12,22,.30);
     --r: 10px;
     --pad: 20px;
     color-scheme: dark;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  html, body { background: var(--ground); }
+  html { background: #000; } body { background: transparent; }
   body {
     margin: 0; color: var(--ink);
     font: 400 15px/1.45 "Onest", -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -36,27 +40,35 @@
   }
   button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
   button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  .bg { position: fixed; inset: 0; z-index: -1; background: #000 url("bg.jpg") center 30% / cover no-repeat; }
+  .bg::after { content: ""; position: absolute; inset: 0;
+    background: radial-gradient(120% 60% at 85% 0%, rgba(157,123,255,.22), transparent 60%),
+                linear-gradient(to bottom, rgba(0,0,0,0), rgba(0,0,0,.1) 60%, rgba(0,0,0,.45)); }
+  .glass { background: var(--glass); -webkit-backdrop-filter: blur(16px) saturate(160%); backdrop-filter: blur(16px) saturate(160%);
+           border: 1px solid rgba(255,255,255,.08); border-radius: 22px; padding: 20px; margin-bottom: 14px; }
   .wrap { max-width: 520px; margin: 0 auto; padding: 0 var(--pad); }
 
   /* шапка: месяц */
   .top { display: flex; align-items: center; justify-content: space-between; padding: 18px 0 6px; }
-  .month { font-size: 15px; font-weight: 500; color: var(--muted); }
+  .month { font-size: 15px; font-weight: 500; color: var(--ink); }
   .month::first-letter { text-transform: uppercase; }
   .nav { display: flex; gap: 4px; }
   .nav button { width: 40px; height: 40px; border-radius: 50%; color: var(--muted); font-size: 20px; transition: background .15s, color .15s, transform .1s; }
-  .nav button:hover { color: var(--ink); background: var(--surface); }
+  .nav button { background: var(--surface); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
+  .nav button:hover { color: var(--ink); background: var(--raised); }
   .nav button:active { transform: scale(.92); }
 
   /* главный элемент: баланс */
-  .hero { padding: 18px 0 28px; }
+  .hero { padding: 22px 20px 20px; margin-top: 8px; }
   .hero .lbl { color: var(--muted); font-size: 14px; }
-  .balance { font-size: clamp(42px, 13vw, 58px); font-weight: 300; letter-spacing: -0.035em; line-height: 1.05; margin: 6px 0 22px; white-space: nowrap; }
-  .balance .cur { color: var(--faint); font-weight: 300; margin-left: .12em; }
+  .balance { background: linear-gradient(100deg, #FFFFFF 30%, var(--violet-2)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+    font-size: clamp(40px, 12.5vw, 56px); font-weight: 300; letter-spacing: -0.035em; line-height: 1.05; margin: 6px 0 22px; white-space: nowrap; }
+  .balance .cur { -webkit-text-fill-color: var(--faint); color: var(--faint); font-weight: 300; margin-left: .12em; }
   .ribbon { display: flex; height: 6px; gap: 3px; margin-bottom: 14px; }
   .ribbon i { display: block; height: 100%; border-radius: 3px; transition: flex-grow .5s cubic-bezier(.2,.8,.2,1); min-width: 0; }
   .ribbon .ri { background: var(--inc); }
   .ribbon .re { background: var(--exp); }
-  .ribbon.empty i { background: var(--line); }
+  .ribbon.empty i { background: var(--raised); }
   .pair { display: flex; justify-content: space-between; gap: 16px; }
   .pair div { font-size: 13px; color: var(--muted); }
   .pair b { display: block; font-size: 19px; font-weight: 500; letter-spacing: -0.01em; color: var(--ink); margin-top: 2px; }
@@ -65,13 +77,13 @@
   .alltime { margin-top: 16px; font-size: 13px; color: var(--faint); }
   .alltime span { color: var(--muted); }
 
-  section { border-top: 1px solid var(--line); padding: 22px 0 6px; }
+  section.glass { padding-bottom: 10px; }
   .sec-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
-  h2 { font-size: 17px; font-weight: 500; margin: 0; letter-spacing: -0.01em; }
+  h2 { font-size: 17px; font-weight: 500; margin: 0; letter-spacing: -0.01em; white-space: nowrap; }
 
   .seg { display: inline-flex; background: var(--surface); border-radius: 9px; padding: 3px; }
   .seg button { padding: 6px 12px; min-height: 32px; border-radius: 7px; font-size: 13px; color: var(--muted); transition: background .15s, color .15s; }
-  .seg button.on { background: var(--raised); color: var(--ink); }
+  .seg button.on { background: var(--violet-tint); color: #E9E0FF; box-shadow: inset 0 0 0 1px rgba(157,123,255,.35); }
 
   /* категории */
   .stack { display: flex; height: 10px; gap: 2px; margin-bottom: 18px; border-radius: 5px; overflow: hidden; }
@@ -87,7 +99,7 @@
   .day:first-child { padding-top: 0; }
   .tx { display: grid; grid-template-columns: 10px 1fr auto; align-items: center; gap: 12px; padding: 10px 0; width: 100%; text-align: left; border-radius: 6px; transition: background .15s; }
   .tx:hover { background: rgba(255,255,255,.02); }
-  .tx:active { background: var(--surface); }
+  .tx:active { background: var(--violet-tint); }
   .tx .d { width: 8px; height: 8px; border-radius: 50%; }
   .tx .m { min-width: 0; }
   .tx .n { display: block; }
@@ -98,39 +110,41 @@
 
   /* нижняя панель */
   .bar { position: fixed; left: 0; right: 0; bottom: 0; padding: 12px var(--pad) calc(12px + env(safe-area-inset-bottom));
-         background: linear-gradient(to top, var(--ground) 70%, rgba(21,23,27,0)); z-index: 5; }
+         background: linear-gradient(to top, rgba(0,0,0,.85) 55%, rgba(0,0,0,0)); z-index: 5; }
   .bar .wrap { display: flex; gap: 10px; padding: 0; }
-  .btn { min-height: 50px; border-radius: var(--r); font-weight: 500; font-size: 15px; padding: 0 18px; transition: transform .1s, background .15s, opacity .15s; }
+  .btn { min-height: 52px; border-radius: 16px; font-weight: 500; font-size: 15px; padding: 0 18px; transition: transform .1s, background .15s, opacity .15s; }
   .btn:active { transform: scale(.97); }
-  .btn-main { flex: 1; background: var(--ink); color: var(--ground); }
-  .btn-main:hover { background: #fff; }
-  .btn-quiet { background: var(--surface); color: var(--ink); }
-  .btn-quiet:hover { background: var(--raised); }
+  .btn-main { flex: 1; color: #fff; font-weight: 600; background: linear-gradient(135deg, #8A63FF, #B38BFF);
+              box-shadow: 0 10px 28px -8px rgba(140,99,255,.7), inset 0 1px 0 rgba(255,255,255,.25); }
+  .btn-main:hover { filter: brightness(1.08); }
+  .btn-quiet { background: rgba(30,28,40,.55); color: var(--ink); border: 1px solid rgba(255,255,255,.1);
+               -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); }
+  .btn-quiet:hover { background: rgba(45,42,60,.6); }
   .btn-danger { width: 100%; color: var(--exp); margin-top: 6px; }
 
   /* шторка */
-  .overlay { position: fixed; inset: 0; background: rgba(5,6,8,.6); opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 10; }
+  .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.55); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 10; }
   .overlay.show { opacity: 1; pointer-events: auto; }
-  .sheet { position: fixed; left: 0; right: 0; bottom: 0; max-width: 520px; margin: 0 auto; background: var(--surface);
-           border-radius: 16px 16px 0 0; padding: 10px var(--pad) calc(20px + env(safe-area-inset-bottom));
+  .sheet { position: fixed; left: 0; right: 0; bottom: 0; max-width: 520px; margin: 0 auto; background: rgba(20,18,28,.88); -webkit-backdrop-filter: blur(30px) saturate(150%); backdrop-filter: blur(30px) saturate(150%);
+           border: 1px solid rgba(255,255,255,.08); border-bottom: 0; border-radius: 24px 24px 0 0; padding: 10px var(--pad) calc(20px + env(safe-area-inset-bottom));
            transform: translateY(102%); transition: transform .28s cubic-bezier(.2,.8,.2,1); z-index: 11; max-height: 92vh; overflow-y: auto; }
   .sheet.show { transform: none; }
   .grip { width: 36px; height: 4px; border-radius: 2px; background: var(--line); margin: 0 auto 14px; }
   .sheet .head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
   .sheet .head h2 { font-size: 17px; }
   .x { width: 36px; height: 36px; border-radius: 50%; color: var(--muted); background: var(--raised); font-size: 15px; }
-  .sheet .seg { display: flex; margin-bottom: 8px; background: var(--ground); }
+  .sheet .seg { display: flex; margin-bottom: 8px; background: rgba(0,0,0,.35); }
   .sheet .seg button { flex: 1; }
-  .amount { width: 100%; background: transparent; border: 0; outline: none; color: var(--ink); text-align: center;
+  .amount { width: 100%; background: transparent; border: 0; outline: none; color: var(--ink); caret-color: var(--violet); text-align: center;
             font: 300 46px/1.1 "Onest", sans-serif; letter-spacing: -0.03em; padding: 18px 0 20px; font-feature-settings: "tnum" 1; }
   .amount:focus-visible { outline: none; }
   .amount::placeholder { color: var(--faint); }
   .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
-  .chip { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 14px; border-radius: 20px; background: var(--ground); color: var(--muted); font-size: 14px; border: 1px solid transparent; transition: color .15s, border-color .15s; }
+  .chip { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 14px; border-radius: 20px; background: rgba(0,0,0,.35); color: var(--muted); font-size: 14px; border: 1px solid transparent; transition: color .15s, border-color .15s; }
   .chip i { width: 7px; height: 7px; border-radius: 50%; }
-  .chip.on { color: var(--ink); border-color: var(--muted); }
-  .field { width: 100%; background: var(--ground); border: 1px solid transparent; border-radius: var(--r); padding: 14px; font: inherit; color: var(--ink); margin-bottom: 10px; outline: none; }
-  .field:focus { border-color: var(--line); }
+  .chip.on { color: #EFE8FF; border-color: rgba(157,123,255,.7); background: var(--violet-tint); }
+  .field { width: 100%; background: rgba(0,0,0,.35); border: 1px solid transparent; border-radius: var(--r); padding: 14px; font: inherit; color: var(--ink); margin-bottom: 10px; outline: none; }
+  .field:focus { border-color: rgba(157,123,255,.5); }
   .field::placeholder { color: var(--faint); }
   .sheet .btn-main { width: 100%; margin-top: 6px; }
   .note { color: var(--muted); font-size: 13px; margin: 0 0 14px; }
@@ -144,6 +158,7 @@
 </style>
 </head>
 <body>
+<div class="bg" aria-hidden="true"></div>
 <div class="wrap">
   <header class="top">
     <div class="month" id="periodTitle"></div>
@@ -153,7 +168,7 @@
     </div>
   </header>
 
-  <div class="hero">
+  <div class="hero glass">
     <div class="lbl">Осталось за месяц</div>
     <div class="balance" id="balance">0<span class="cur">₽</span></div>
     <div class="ribbon empty" id="ribbon"><i class="ri" style="flex-grow:1"></i><i class="re" style="flex-grow:1"></i></div>
@@ -164,9 +179,9 @@
     <div class="alltime">На счету за всё время: <span id="allTime">0 ₽</span></div>
   </div>
 
-  <section>
+  <section class="glass">
     <div class="sec-head">
-      <h2>Куда ушли деньги</h2>
+      <h2>По категориям</h2>
       <div class="seg" id="statTabs">
         <button data-t="exp" class="on">Расходы</button>
         <button data-t="inc">Доходы</button>
@@ -175,7 +190,7 @@
     <div id="cats"></div>
   </section>
 
-  <section>
+  <section class="glass">
     <div class="sec-head"><h2>Операции</h2></div>
     <div id="list"></div>
   </section>
@@ -215,7 +230,7 @@
 const tg = window.Telegram && window.Telegram.WebApp;
 if (tg) {
   tg.ready(); tg.expand();
-  try { tg.setHeaderColor('#15171B'); tg.setBackgroundColor('#15171B'); tg.setBottomBarColor && tg.setBottomBarColor('#15171B'); } catch (e) {}
+  try { tg.setHeaderColor('#000000'); tg.setBackgroundColor('#000000'); tg.setBottomBarColor && tg.setBottomBarColor('#000000'); } catch (e) {}
 }
 
 const CATS = {
@@ -234,7 +249,7 @@ const CATS = {
 // индексы категорий (новые добавлять только в конец списков!)
 const E = {food:0, cafe:1, transport:2, home:3, utils:4, clothes:5, health:6, fun:7, gifts:8, edu:9, pets:10, other:11, transfer:12, cash:13, car:14, house:15};
 const I = {salary:0, freelance:1, invest:2, gift:3, refund:4, sale:5, other:6, transfer:7, interest:8};
-const COLORS = ['#8FB8DE','#E3A77F','#9AD0C2','#D4BE7E','#7F9FD1','#D98E9E','#A9CC8E','#E6C590','#7FC4D4','#C7A38F','#B5C77E','#9AA3AE','#D1A6B8','#8CC7A8','#C9A86A','#A0B4C8'];
+const COLORS = ['#A98BFF','#7FB2F0','#8FD4B4','#E6C590','#D68FD6','#F0A3B0','#A9CC8E','#F2B48A','#7FD0E0','#C7A38F','#B5C77E','#9A97A6','#C9B4FF','#8CC7A8','#C9A86A','#B0BCE8'];
 const COLORS_INC = ['#8FD4B4','#9DC3E6','#D4BE7E','#E3A77F','#A9CC8E','#7FC4D4','#9AA3AE','#B8D4A0','#C7A38F'];
 
 // ---------- Storage (Telegram CloudStorage, fallback localStorage) ----------
