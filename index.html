@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Мои финансы</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  :root {
+    --bg: var(--tg-theme-bg-color, #ffffff);
+    --bg2: var(--tg-theme-secondary-bg-color, #f2f2f7);
+    --text: var(--tg-theme-text-color, #111111);
+    --hint: var(--tg-theme-hint-color, #8e8e93);
+    --accent: var(--tg-theme-button-color, #2481cc);
+    --accent-text: var(--tg-theme-button-text-color, #ffffff);
+    --green: #2fb36d;
+    --red: #e5484d;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0; padding: 0 0 90px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg2); color: var(--text); font-size: 15px;
+  }
+  .wrap { max-width: 560px; margin: 0 auto; padding: 12px; }
+  .card { background: var(--bg); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; }
+  .period { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .period button { background: var(--bg); border: none; color: var(--text); width: 40px; height: 40px; border-radius: 50%; font-size: 18px; cursor: pointer; }
+  .period .title { font-weight: 600; font-size: 17px; text-transform: capitalize; }
+  .balance-label { color: var(--hint); font-size: 13px; }
+  .balance { font-size: 32px; font-weight: 700; margin: 4px 0 14px; }
+  .totals { display: flex; gap: 10px; }
+  .totals > div { flex: 1; background: var(--bg2); border-radius: 12px; padding: 10px 12px; }
+  .totals .lbl { font-size: 12px; color: var(--hint); }
+  .totals .val { font-size: 18px; font-weight: 600; margin-top: 2px; }
+  .inc { color: var(--green); } .exp { color: var(--red); }
+  .tabs { display: flex; background: var(--bg2); border-radius: 10px; padding: 3px; margin-bottom: 12px; }
+  .tabs button { flex: 1; border: none; background: transparent; padding: 8px; border-radius: 8px; color: var(--text); font-size: 14px; cursor: pointer; }
+  .tabs button.on { background: var(--bg); font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+  h3 { margin: 0 0 10px; font-size: 15px; }
+  .cat-row { margin-bottom: 10px; }
+  .cat-row .top { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 4px; }
+  .bar { height: 6px; background: var(--bg2); border-radius: 3px; overflow: hidden; }
+  .bar > i { display: block; height: 100%; border-radius: 3px; }
+  .empty { color: var(--hint); text-align: center; padding: 18px 0; font-size: 14px; }
+  .day { color: var(--hint); font-size: 12px; text-transform: uppercase; margin: 14px 0 6px; letter-spacing: .3px; }
+  .day:first-child { margin-top: 0; }
+  .tx { display: flex; align-items: center; gap: 12px; padding: 8px 0; cursor: pointer; }
+  .tx .ico { width: 38px; height: 38px; border-radius: 50%; background: var(--bg2); display: flex; align-items: center; justify-content: center; font-size: 19px; flex-shrink: 0; }
+  .tx .mid { flex: 1; min-width: 0; }
+  .tx .name { font-weight: 500; }
+  .tx .note { color: var(--hint); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tx .sum { font-weight: 600; white-space: nowrap; }
+  .fab { position: fixed; left: 50%; transform: translateX(-50%); bottom: 20px; background: var(--accent); color: var(--accent-text); border: none; border-radius: 26px; padding: 14px 28px; font-size: 16px; font-weight: 600; box-shadow: 0 4px 14px rgba(0,0,0,.2); cursor: pointer; }
+  /* sheet */
+  .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.4); display: none; z-index: 10; }
+  .overlay.show { display: block; }
+  .sheet { position: fixed; left: 0; right: 0; bottom: 0; background: var(--bg); border-radius: 18px 18px 0 0; padding: 16px 16px 24px; max-width: 560px; margin: 0 auto; transform: translateY(100%); transition: transform .25s; z-index: 11; max-height: 92vh; overflow-y: auto; }
+  .sheet.show { transform: translateY(0); }
+  .sheet .head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  .sheet .head b { font-size: 17px; }
+  .sheet .close { background: var(--bg2); border: none; color: var(--hint); width: 30px; height: 30px; border-radius: 50%; font-size: 16px; cursor: pointer; }
+  .amount { width: 100%; font-size: 34px; font-weight: 700; border: none; outline: none; background: transparent; color: var(--text); text-align: center; padding: 6px 0 12px; }
+  .cats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 12px; }
+  .cats button { background: var(--bg2); border: 2px solid transparent; border-radius: 12px; padding: 8px 2px; color: var(--text); font-size: 11px; cursor: pointer; }
+  .cats button span { display: block; font-size: 22px; margin-bottom: 2px; }
+  .cats button.on { border-color: var(--accent); }
+  .field { width: 100%; background: var(--bg2); border: none; border-radius: 10px; padding: 12px; font-size: 15px; color: var(--text); margin-bottom: 10px; outline: none; font-family: inherit; }
+  .save { width: 100%; background: var(--accent); color: var(--accent-text); border: none; border-radius: 12px; padding: 14px; font-size: 16px; font-weight: 600; cursor: pointer; }
+  .del { width: 100%; background: transparent; color: var(--red); border: none; padding: 12px; font-size: 15px; margin-top: 6px; cursor: pointer; display: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="period">
+    <button id="prev">‹</button>
+    <div class="title" id="periodTitle"></div>
+    <button id="next">›</button>
+  </div>
+
+  <div class="card">
+    <div class="balance-label">Баланс за месяц</div>
+    <div class="balance" id="balance">0 ₽</div>
+    <div class="totals">
+      <div><div class="lbl">Заработал</div><div class="val inc" id="totalInc">0 ₽</div></div>
+      <div><div class="lbl">Потратил</div><div class="val exp" id="totalExp">0 ₽</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="tabs" id="statTabs">
+      <button data-t="exp" class="on">Расходы</button>
+      <button data-t="inc">Доходы</button>
+    </div>
+    <div id="cats"></div>
+  </div>
+
+  <div class="card">
+    <h3>Операции</h3>
+    <div id="list"></div>
+  </div>
+
+  <div class="card" style="text-align:center">
+    <div class="balance-label">Общий баланс за всё время</div>
+    <div style="font-size:20px;font-weight:600;margin-top:4px" id="allTime">0 ₽</div>
+  </div>
+</div>
+
+<button class="fab" id="addBtn">＋ Добавить</button>
+
+<div class="overlay" id="overlay"></div>
+<div class="sheet" id="sheet">
+  <div class="head"><b id="sheetTitle">Новая операция</b><button class="close" id="closeBtn">✕</button></div>
+  <div class="tabs" id="typeTabs">
+    <button data-t="exp" class="on">Расход</button>
+    <button data-t="inc">Доход</button>
+  </div>
+  <input class="amount" id="amount" type="text" inputmode="decimal" placeholder="0 ₽" autocomplete="off">
+  <div class="cats" id="catPicker"></div>
+  <input class="field" id="note" type="text" placeholder="Комментарий (необязательно)" maxlength="60">
+  <input class="field" id="date" type="date">
+  <button class="save" id="saveBtn">Сохранить</button>
+  <button class="del" id="delBtn">Удалить операцию</button>
+</div>
+
+<script>
+const tg = window.Telegram && window.Telegram.WebApp;
+if (tg) { tg.ready(); tg.expand(); }
+
+const CATS = {
+  exp: [
+    ['🛒','Продукты'],['🍔','Кафе'],['🚕','Транспорт'],['🏠','Жильё'],
+    ['💡','Связь и ЖКХ'],['👕','Одежда'],['💊','Здоровье'],['🎮','Развлечения'],
+    ['🎁','Подарки'],['📚','Обучение'],['🐾','Питомцы'],['📦','Другое']
+  ],
+  inc: [
+    ['💼','Зарплата'],['💻','Фриланс'],['📈','Инвестиции'],['🎁','Подарок'],
+    ['↩️','Возврат'],['🏷️','Продажа'],['💰','Другое']
+  ]
+};
+const COLORS = ['#2481cc','#e5484d','#f5a623','#2fb36d','#8e5cf7','#00a5b5','#ff7a45','#d6409f','#6b8e23','#5c6bc0','#a1887f','#78909c'];
+
+// ---------- Storage (Telegram CloudStorage, fallback localStorage) ----------
+const CHUNK = 3900;
+const hasCloud = !!(tg && tg.CloudStorage && tg.isVersionAtLeast && tg.isVersionAtLeast('6.9'));
+
+function cloudGet(keys) {
+  return new Promise((res, rej) => tg.CloudStorage.getItems(keys, (e, v) => e ? rej(e) : res(v)));
+}
+function cloudSet(k, v) {
+  return new Promise((res, rej) => tg.CloudStorage.setItem(k, v, (e) => e ? rej(e) : res()));
+}
+function cloudDel(keys) {
+  return new Promise((res) => tg.CloudStorage.removeItems(keys, () => res()));
+}
+
+// compact row: [id, type(0 exp / 1 inc), amount, catIndex, timestamp(sec), note]
+let tx = [];
+
+async function load() {
+  try {
+    if (hasCloud) {
+      const meta = await cloudGet(['n']);
+      const n = parseInt(meta.n || '0', 10);
+      if (n > 0) {
+        const keys = Array.from({length: n}, (_, i) => 'd' + i);
+        const parts = await cloudGet(keys);
+        tx = JSON.parse(keys.map(k => parts[k] || '').join('') || '[]');
+      }
+    } else {
+      tx = JSON.parse(localStorage.getItem('fin_tx') || '[]');
+    }
+  } catch (e) { console.error(e); tx = []; }
+}
+
+let saving = Promise.resolve();
+function persist() {
+  const data = JSON.stringify(tx);
+  saving = saving.then(async () => {
+    try {
+      if (hasCloud) {
+        const old = parseInt((await cloudGet(['n'])).n || '0', 10);
+        const chunks = [];
+        for (let i = 0; i < data.length; i += CHUNK) chunks.push(data.slice(i, i + CHUNK));
+        for (let i = 0; i < chunks.length; i++) await cloudSet('d' + i, chunks[i]);
+        await cloudSet('n', String(chunks.length));
+        if (old > chunks.length) {
+          await cloudDel(Array.from({length: old - chunks.length}, (_, i) => 'd' + (chunks.length + i)));
+        }
+      } else {
+        localStorage.setItem('fin_tx', data);
+      }
+    } catch (e) {
+      console.error(e);
+      if (tg) tg.showAlert('Не удалось сохранить данные. Проверьте соединение.');
+    }
+  });
+  return saving;
+}
+
+// ---------- Helpers ----------
+const fmt = n => (Math.round(n * 100) / 100).toLocaleString('ru-RU', {maximumFractionDigits: 2}) + ' ₽';
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const typeKey = t => t === 1 ? 'inc' : 'exp';
+const haptic = (kind) => { try { tg && tg.HapticFeedback.notificationOccurred(kind); } catch (e) {} };
+function toInputDate(d) {
+  const p = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+// ---------- State ----------
+const now = new Date();
+let viewY = now.getFullYear(), viewM = now.getMonth();
+let statType = 'exp';
+let formType = 'exp', formCat = 0, editingId = null;
+
+function monthTx() {
+  return tx.filter(r => { const d = new Date(r[4] * 1000); return d.getFullYear() === viewY && d.getMonth() === viewM; });
+}
+
+// ---------- Render ----------
+function render() {
+  const title = new Date(viewY, viewM, 1).toLocaleDateString('ru-RU', {month: 'long', year: 'numeric'});
+  document.getElementById('periodTitle').textContent = title;
+
+  const list = monthTx();
+  let inc = 0, exp = 0;
+  list.forEach(r => r[1] === 1 ? inc += r[2] : exp += r[2]);
+  const bal = inc - exp;
+  const balEl = document.getElementById('balance');
+  balEl.textContent = (bal > 0 ? '+' : '') + fmt(bal);
+  balEl.className = 'balance ' + (bal > 0 ? 'inc' : bal < 0 ? 'exp' : '');
+  document.getElementById('totalInc').textContent = fmt(inc);
+  document.getElementById('totalExp').textContent = fmt(exp);
+
+  let all = 0; tx.forEach(r => all += r[1] === 1 ? r[2] : -r[2]);
+  document.getElementById('allTime').textContent = fmt(all);
+
+  // categories
+  const t = statType === 'inc' ? 1 : 0;
+  const sums = {};
+  let total = 0;
+  list.filter(r => r[1] === t).forEach(r => { sums[r[3]] = (sums[r[3]] || 0) + r[2]; total += r[2]; });
+  const rows = Object.entries(sums).sort((a, b) => b[1] - a[1]);
+  const catsEl = document.getElementById('cats');
+  if (!rows.length) {
+    catsEl.innerHTML = `<div class="empty">Нет ${t ? 'доходов' : 'расходов'} за этот месяц</div>`;
+  } else {
+    catsEl.innerHTML = rows.map(([ci, s]) => {
+      const c = CATS[statType][ci] || ['❓', '—'];
+      const pct = total ? Math.round(s / total * 100) : 0;
+      return `<div class="cat-row"><div class="top"><span>${c[0]} ${c[1]}</span><span><b>${fmt(s)}</b> <span style="color:var(--hint)">· ${pct}%</span></span></div>
+        <div class="bar"><i style="width:${pct}%;background:${COLORS[ci % COLORS.length]}"></i></div></div>`;
+    }).join('');
+  }
+
+  // list grouped by day
+  const listEl = document.getElementById('list');
+  if (!list.length) {
+    listEl.innerHTML = '<div class="empty">Пока пусто. Нажмите «Добавить», чтобы записать первую операцию</div>';
+    return;
+  }
+  const sorted = [...list].sort((a, b) => b[4] - a[4] || b[0] - a[0]);
+  let html = '', lastDay = '';
+  sorted.forEach(r => {
+    const d = new Date(r[4] * 1000);
+    const dayStr = d.toLocaleDateString('ru-RU', {day: 'numeric', month: 'long', weekday: 'short'});
+    if (dayStr !== lastDay) { html += `<div class="day">${dayStr}</div>`; lastDay = dayStr; }
+    const k = typeKey(r[1]);
+    const c = CATS[k][r[3]] || ['❓', '—'];
+    html += `<div class="tx" data-id="${r[0]}"><div class="ico">${c[0]}</div>
+      <div class="mid"><div class="name">${c[1]}</div>${r[5] ? `<div class="note">${esc(r[5])}</div>` : ''}</div>
+      <div class="sum ${k}">${r[1] === 1 ? '+' : '−'}${fmt(r[2])}</div></div>`;
+  });
+  listEl.innerHTML = html;
+}
+
+// ---------- Form ----------
+function renderCatPicker() {
+  document.getElementById('catPicker').innerHTML = CATS[formType].map((c, i) =>
+    `<button data-i="${i}" class="${i === formCat ? 'on' : ''}"><span>${c[0]}</span>${c[1]}</button>`).join('');
+  document.querySelectorAll('#typeTabs button').forEach(b => b.classList.toggle('on', b.dataset.t === formType));
+}
+
+function openSheet(row) {
+  editingId = row ? row[0] : null;
+  formType = row ? typeKey(row[1]) : 'exp';
+  formCat = row ? row[3] : 0;
+  document.getElementById('sheetTitle').textContent = row ? 'Редактирование' : 'Новая операция';
+  document.getElementById('amount').value = row ? String(row[2]).replace('.', ',') : '';
+  document.getElementById('note').value = row ? row[5] || '' : '';
+  const defDate = row ? new Date(row[4] * 1000)
+    : (viewY === now.getFullYear() && viewM === now.getMonth() ? new Date() : new Date(viewY, viewM, 1));
+  document.getElementById('date').value = toInputDate(defDate);
+  document.getElementById('delBtn').style.display = row ? 'block' : 'none';
+  renderCatPicker();
+  document.getElementById('overlay').classList.add('show');
+  document.getElementById('sheet').classList.add('show');
+  if (!row) setTimeout(() => document.getElementById('amount').focus(), 250);
+}
+function closeSheet() {
+  document.getElementById('overlay').classList.remove('show');
+  document.getElementById('sheet').classList.remove('show');
+  document.activeElement && document.activeElement.blur();
+}
+
+function save() {
+  const raw = document.getElementById('amount').value.replace(/\s/g, '').replace(',', '.');
+  const amount = Math.round(parseFloat(raw) * 100) / 100;
+  if (!amount || amount <= 0 || !isFinite(amount)) {
+    haptic('error');
+    tg ? tg.showAlert('Введите сумму больше нуля') : alert('Введите сумму больше нуля');
+    return;
+  }
+  const dv = document.getElementById('date').value;
+  const [y, m, d] = dv ? dv.split('-').map(Number) : [now.getFullYear(), now.getMonth() + 1, now.getDate()];
+  const ts = Math.floor(new Date(y, m - 1, d, 12).getTime() / 1000);
+  const note = document.getElementById('note').value.trim().slice(0, 60);
+  const t = formType === 'inc' ? 1 : 0;
+
+  if (editingId) {
+    const r = tx.find(x => x[0] === editingId);
+    if (r) { r[1] = t; r[2] = amount; r[3] = formCat; r[4] = ts; r[5] = note; }
+  } else {
+    tx.push([Date.now(), t, amount, formCat, ts, note]);
+  }
+  // jump to month of the saved operation
+  viewY = y; viewM = m - 1;
+  persist();
+  haptic('success');
+  closeSheet();
+  render();
+}
+
+function remove() {
+  const doIt = () => {
+    tx = tx.filter(x => x[0] !== editingId);
+    persist(); haptic('warning'); closeSheet(); render();
+  };
+  if (tg && tg.showConfirm) tg.showConfirm('Удалить эту операцию?', ok => ok && doIt());
+  else if (confirm('Удалить эту операцию?')) doIt();
+}
+
+// ---------- Events ----------
+document.getElementById('prev').onclick = () => { if (--viewM < 0) { viewM = 11; viewY--; } render(); };
+document.getElementById('next').onclick = () => { if (++viewM > 11) { viewM = 0; viewY++; } render(); };
+document.getElementById('addBtn').onclick = () => openSheet(null);
+document.getElementById('closeBtn').onclick = closeSheet;
+document.getElementById('overlay').onclick = closeSheet;
+document.getElementById('saveBtn').onclick = save;
+document.getElementById('delBtn').onclick = remove;
+document.getElementById('statTabs').onclick = e => {
+  const b = e.target.closest('button'); if (!b) return;
+  statType = b.dataset.t;
+  document.querySelectorAll('#statTabs button').forEach(x => x.classList.toggle('on', x === b));
+  render();
+};
+document.getElementById('typeTabs').onclick = e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (formType !== b.dataset.t) { formType = b.dataset.t; formCat = 0; renderCatPicker(); }
+};
+document.getElementById('catPicker').onclick = e => {
+  const b = e.target.closest('button'); if (!b) return;
+  formCat = +b.dataset.i; renderCatPicker();
+  try { tg && tg.HapticFeedback.selectionChanged(); } catch (err) {}
+};
+document.getElementById('list').onclick = e => {
+  const el = e.target.closest('.tx'); if (!el) return;
+  const r = tx.find(x => x[0] === +el.dataset.id); if (r) openSheet(r);
+};
+document.getElementById('amount').addEventListener('keydown', e => { if (e.key === 'Enter') save(); });
+
+load().then(render);
+</script>
+</body>
+</html>
