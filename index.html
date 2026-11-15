@@ -593,6 +593,7 @@ function persist() {
       if (legacyKeys) { for (let i = 0; i < legacyKeys; i++) junk.push('d' + i); junk.push('n'); legacyKeys = 0; }
       cloudDel(junk);
       if (--pendingSaves === 0) setSync('ok');
+      syncToBot();
     } catch (e) {
       console.error(e);
       pendingSaves = Math.max(0, pendingSaves - 1);
@@ -602,6 +603,28 @@ function persist() {
     }
   });
   return saving;
+}
+
+// ---------- Сводка для бота (/level) ----------
+// В бот уходит только уровень месяца: доход за текущий месяц и доходы за 6 месяцев.
+const BOT_SYNC_URL = 'https://fin.matrash37.workers.dev/sync';
+let botSyncTimer = null, lastBotSync = '';
+function syncToBot() {
+  if (!tg || !tg.initData) return;
+  clearTimeout(botSyncTimer);
+  botSyncTimer = setTimeout(() => {
+    const short = ['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
+    const mo = [];
+    for (let k = 5; k >= 0; k--) {
+      const idx = now.getFullYear() * 12 + now.getMonth() - k, y = Math.floor(idx / 12), m = idx % 12;
+      mo.push([short[m], Math.round(sumBy(monthOf(y, m), 1))]);
+    }
+    const summary = {m: new Date(now.getFullYear(), now.getMonth(), 1).toLocaleDateString('ru-RU', {month: 'long'}), i: mo[5][1], mo};
+    const body = JSON.stringify({initData: tg.initData, summary});
+    if (body === lastBotSync) return;
+    fetch(BOT_SYNC_URL, {method: 'POST', headers: {'Content-Type': 'application/json'}, body})
+      .then(r => { if (r.ok) lastBotSync = body; }).catch(() => {});
+  }, 1500);
 }
 
 function setSync(state, msg) {
@@ -1638,7 +1661,7 @@ document.getElementById('fileInput').onchange = e => {
 };
 document.getElementById('pvClose').onclick = closeSheet;
 
-load().then(() => { render(); setTimeout(checkAchievements, 400); });
+load().then(() => { render(); setTimeout(checkAchievements, 400); syncToBot(); });
 </script>
 </body>
 </html>

@@ -1,0 +1,36 @@
+<style>
+:root{color-scheme:light dark;--a:var(--tg-theme-button-color,#9d7bff);--t:var(--tg-theme-text-color,#eee);--h:var(--tg-theme-hint-color,#999);--s:var(--tg-theme-section-separator-color,rgba(128,128,128,.25))}
+body{margin:0;font:14px/1.35 system-ui,sans-serif;color:var(--t)}
+.w{padding:12px 12px calc(10px + env(safe-area-inset-bottom))}
+.r{display:flex;justify-content:space-between;align-items:center}
+.h{color:var(--h);font-size:12px}
+.n{display:flex;align-items:center;gap:10px;margin:8px 0 12px;font-size:22px;font-weight:600}
+.m{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-size:10px;font-weight:700;color:#3a2a08}
+.b0{background:#555;color:#ccc}.b1{background:radial-gradient(circle at 35% 30%,#f4c39a,#c27a45 60%,#8e5126)}.b2{background:radial-gradient(circle at 35% 30%,#fff,#c4cad3 55%,#8a929e)}.b3{background:radial-gradient(circle at 35% 30%,#fff1b8,#f2c14e 55%,#b9821b)}
+.tr{position:relative;height:6px;border-radius:3px;background:var(--s);margin:10px 8px 6px}
+.f{position:absolute;left:0;top:0;bottom:0;width:0;border-radius:3px;background:linear-gradient(90deg,#e9a93b,#f7d774);transition:width 1.2s cubic-bezier(.2,.8,.2,1)}
+.d{position:absolute;top:50%;width:12px;height:12px;margin:-6px;border-radius:50%;background:var(--s);transition:background .3s .9s}
+.d.on{background:#f2c14e}
+.lb{position:relative;height:14px;font-size:11px;color:var(--h);margin:0 8px 10px}.lb span{position:absolute;transform:translateX(-50%)}
+.x{margin:0 0 12px}.x b{font-weight:600}
+.c{display:flex;align-items:flex-end;gap:6px;height:90px;position:relative;border-bottom:1px solid var(--s)}
+.c i{flex:1;border-radius:4px 4px 0 0;background:var(--a);opacity:.45;transform-origin:bottom;animation:g .9s cubic-bezier(.2,.8,.2,1) both}
+.c i.cur{opacity:1}
+.c u{position:absolute;left:0;right:0;height:0;border-top:1px dashed var(--s);font-size:9px;color:var(--h);text-decoration:none;z-index:1}.c u s{position:relative;top:-12px;text-decoration:none}
+@keyframes g{from{transform:scaleY(0)}}
+.ml{display:flex;gap:6px;font-size:10px;color:var(--h);margin-top:4px}.ml span{flex:1;text-align:center}
+button{margin-top:10px;width:100%;padding:8px;border:0;border-radius:10px;background:var(--a);color:var(--tg-theme-button-text-color,#fff);font:inherit;font-weight:600}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+<div class="w" id="w"></div>
+<script>
+const W=window.TelegramWidget,L=[[0,'Старт'],[6e4,'Бронза'],[8e4,'Серебро'],[1e5,'Золото']],R=n=>Math.round(n).toLocaleString('ru-RU')+'\u00a0₽',K=n=>n>=1e3?Math.round(n/1e3)+'к':n,$=document.getElementById('w');
+function draw(){let s=null;try{s=JSON.parse(W&&W.chatData)}catch(e){}
+if(!s){$.innerHTML='<div class="h">Нет данных. Откройте приложение, и бот увидит ваши операции.</div>';return}
+const i=s.i,lv=L.reduce((a,l,k)=>i>=l[0]?k:a,0),nx=L[lv+1],p=Math.min(100,i/1e5*100),mx=Math.max(1e5,...s.mo.map(x=>x[1]))*1.05;
+$.innerHTML=`<div class="r h"><span>Уровень месяца, ${s.m}</span><span>${lv} из 3</span></div><div class="n"><span class="m b${lv}">${lv?K(L[lv][0]):'0'}</span>${L[lv][1]}</div><div class="tr"><div class="f" id="f"></div>${L.map((l,k)=>`<span class="d${i>=l[0]?' on':''}" style="left:${l[0]/1e3}%"></span>`).join('')}</div><div class="lb">${L.map(l=>`<span style="left:${l[0]/1e3}%">${K(l[0])}</span>`).join('')}</div><div class="x">Пришло <b>${R(i)}</b>. ${nx?`До уровня «${nx[1]}» ещё <b>${R(nx[0]-i)}</b>`:'Максимальный уровень!'}</div><div class="c">${[6e4,8e4,1e5].map(t=>`<u style="bottom:${t/mx*100}%"><s>${K(t)}</s></u>`).join('')}${s.mo.map((x,k)=>`<i class="${k==s.mo.length-1?'cur':''}" style="height:${x[1]/mx*100}%;animation-delay:${k*.06}s"></i>`).join('')}</div><div class="ml">${s.mo.map(x=>`<span>${x[0]}</span>`).join('')}</div><button id="u">Обновить</button>`;
+requestAnimationFrame(()=>requestAnimationFrame(()=>{document.getElementById('f').style.width=p+'%'}));
+document.getElementById('u').onclick=e=>{const b=e.target;b.textContent='Обновляю…';W.request('refresh').then(()=>{W.HapticFeedback.notificationOccurred('success')},()=>{b.textContent='Обновить'})};
+if(lv&&W.HapticFeedback)W.HapticFeedback.impactOccurred('light')}
+if(W){W.onEvent('chatDataChanged',draw);W.ready()}draw();
+</script>
