@@ -118,6 +118,7 @@ async function handle(update, env) {
   }
   if (!m.text) return send(env, chat, T.media, KB(env, MENU));
 
+  if (t.startsWith('/widgettest')) return widgetTest(env, chat, m.from.id);
   if (t.startsWith('/level') || /^(уровень|level|мой уровень|прогресс)/.test(t)) return sendLevel(env, chat, m.from.id);
   if (t.startsWith('/stats') || /^(статистика|итоги|сколько (я )?(потратил|заработал)|траты|расходы|доходы|stats)/.test(t)) return sendStats(env, chat, m.from.id);
   if (t.startsWith('/start')) return send(env, chat, T.start(m.from && m.from.first_name), KB(env, MENU));
@@ -144,6 +145,25 @@ const rub = n => Math.round(n).toLocaleString('ru-RU') + ' ₽';
 async function getSummary(env, userId) {
   if (!env.FIN_KV) return null;
   return env.FIN_KV.get('u:' + userId);
+}
+
+// служебная проверка: какие варианты виджета Telegram принимает
+async function widgetTest(env, chat, userId) {
+  const raw = (await getSummary(env, userId)) || '{"m":"тест","i":0,"e":0,"mo":[],"c":[]}';
+  const kb = {inline_keyboard: [[{text: '💰 Открыть финансы', web_app: {url: env.WEBAPP_URL}}]]};
+  const variants = [
+    ['1 простой', {html: '<b>Тест виджета 1</b>'}],
+    ['2 простой + запросы', {html: '<b>Тест виджета 2</b>', allow_queries: true}],
+    ['3 полный без кнопки', {html: WIDGET_HTML, chat_data: raw}],
+    ['4 полный с кнопкой и запросами', {html: WIDGET_HTML, chat_data: raw, allow_queries: true, reply_markup: kb}],
+  ];
+  const out = [];
+  for (const [name, p] of variants) {
+    const r = await tg(env, 'sendWidget', {chat_id: chat, ...p});
+    out.push(`${name}: ${r.ok ? 'OK' : r.description}`);
+  }
+  try { await env.FIN_KV.put('diag', JSON.stringify({at: new Date().toISOString(), out})); } catch (e) {}
+  return send(env, chat, 'Проверка виджетов:\n' + out.join('\n'));
 }
 
 // последняя ошибка Telegram сохраняется в KV (ключ err:last), чтобы её можно было посмотреть в Cloudflare
@@ -245,7 +265,7 @@ async function setup(url, env, secret) {
     steps.push(`${r.ok ? '✅' : '❌'} ${name}${r.ok ? '' : ': ' + r.description}`);
     return r.ok;
   };
-  const okHook = await run('Вебхук', 'setWebhook', {url: hook, secret_token: secret, allowed_updates: ['message', 'callback_query', 'widget_query'], drop_pending_updates: true});
+  const okHook = await run('Вебхук', 'setWebhook', {url: hook, secret_token: secret, allowed_updates: ['message', 'callback_query', 'widget_query', 'shared_widget_query'], drop_pending_updates: true});
   await run('Кнопка меню', 'setChatMenuButton', {menu_button: {type: 'web_app', text: 'Финансы', web_app: {url: env.WEBAPP_URL}}});
   await run('Команды', 'setMyCommands', {commands: [
     {command: 'start', description: 'Открыть финансы'},
