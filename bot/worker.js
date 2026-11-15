@@ -146,12 +146,19 @@ async function getSummary(env, userId) {
   return env.FIN_KV.get('u:' + userId);
 }
 
+// последняя ошибка Telegram сохраняется в KV (ключ err:last), чтобы её можно было посмотреть в Cloudflare
+async function logError(env, where, r) {
+  console.error(where, JSON.stringify(r));
+  try { if (env.FIN_KV) await env.FIN_KV.put('err:last', JSON.stringify({where, at: new Date().toISOString(), code: r.error_code, description: r.description})); } catch (e) {}
+}
+
 async function sendLevel(env, chat, userId) {
   const raw = await getSummary(env, userId);
   if (!raw) return send(env, chat, 'Пока не вижу ваших данных. Откройте приложение один раз — и команда /level заработает.', KB(env));
-  const r = await tg(env, 'sendWidget', {chat_id: chat, html: WIDGET_HTML, chat_data: raw, allow_queries: true, height: 0, width: 0,
+  const r = await tg(env, 'sendWidget', {chat_id: chat, html: WIDGET_HTML, chat_data: raw, allow_queries: true,
     reply_markup: {inline_keyboard: [[{text: '💰 Открыть финансы', web_app: {url: env.WEBAPP_URL}}]]}});
   if (r.ok) return r;
+  await logError(env, 'sendWidget /level', r);
   // запасной вариант для старых версий Telegram: текстом
   const s = JSON.parse(raw), i = s.i;
   const next = LEVELS.find(l => i < l[0]);
@@ -168,9 +175,10 @@ async function sendStats(env, chat, userId) {
   const s = raw ? JSON.parse(raw) : null;
   if (!s) return send(env, chat, 'Пока не вижу ваших данных. Откройте приложение один раз, и команда /stats заработает.', KB(env));
   if (s.e == null) return send(env, chat, 'У вас открыта старая версия приложения, она не присылает расходы. Полностью закройте приложение (свайпом вниз или кнопкой «Закрыть»), откройте его снова и через пару секунд повторите /stats.', KB(env));
-  const r = await tg(env, 'sendWidget', {chat_id: chat, html: STATS_HTML, chat_data: raw, allow_queries: true, height: 0, width: 0,
+  const r = await tg(env, 'sendWidget', {chat_id: chat, html: STATS_HTML, chat_data: raw, allow_queries: true,
     reply_markup: {inline_keyboard: [[{text: '💰 Открыть финансы', web_app: {url: env.WEBAPP_URL}}]]}});
   if (r.ok) return r;
+  await logError(env, 'sendWidget /stats', r);
   const b = s.i - s.e;
   return send(env, chat,
 `Итоги месяца (${s.m})
