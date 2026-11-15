@@ -1,0 +1,16 @@
+// Настройки бота для Cloudflare Workers.
+// После каждого обновления репозитория Cloudflare сам публикует bot/worker.js.
+// Токен бота (BOT_TOKEN) хранится в Cloudflare как секрет и здесь не указывается.
+{
+  "name": "fin",
+  "main": "bot/worker.js",
+  "compatibility_date": "2026-11-15",
+  "workers_dev": true,
+  "keep_vars": true,
+  "vars": {
+    "WEBAPP_URL": "https://matrash37-eng.github.io/Fin/"
+  },
+  "kv_namespaces": [
+    { "binding": "FIN_KV", "id": "1eaef64a1ebb4e0ea80a374d3174a5dd" }
+  ]
+}
