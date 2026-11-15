@@ -1,0 +1,33 @@
+<style>
+:root{color-scheme:light dark;--t:var(--tg-theme-text-color,#eee);--h:var(--tg-theme-hint-color,#999);--s:var(--tg-theme-section-separator-color,rgba(128,128,128,.25));--in:#26a08a;--ex:#e06a55}
+body{margin:0;font:14px/1.35 system-ui,sans-serif;color:var(--t)}
+.w{padding:12px 12px calc(10px + env(safe-area-inset-bottom))}
+.h{color:var(--h);font-size:12px}
+.p{display:flex;gap:10px;margin:8px 0 4px}.p div{flex:1}
+.p b{display:block;font-size:19px;font-weight:600;margin-top:2px;white-space:nowrap}
+.k{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px}
+.bl{margin:6px 0 12px}.bl b{font-weight:600}
+.rb{display:flex;gap:3px;height:8px;margin-bottom:14px}.rb i{border-radius:3px;transition:flex-grow 1s cubic-bezier(.2,.8,.2,1)}
+.c{display:flex;align-items:flex-end;gap:8px;height:96px;border-bottom:1px solid var(--s)}
+.g{flex:1;display:flex;align-items:flex-end;justify-content:center;gap:2px;height:100%}
+.g i{flex:1;max-width:14px;border-radius:4px 4px 0 0;transform-origin:bottom;animation:u .9s cubic-bezier(.2,.8,.2,1) both}
+@keyframes u{from{transform:scaleY(0)}}
+.ml{display:flex;gap:8px;font-size:10px;color:var(--h);margin:4px 0 14px}.ml span{flex:1;text-align:center}
+.ml .on{color:var(--t);font-weight:600}
+.lg{display:flex;gap:12px;font-size:11px;color:var(--h);margin-bottom:8px}
+.ct{display:grid;grid-template-columns:8px 1fr auto;gap:4px 8px;align-items:center;margin-bottom:6px;font-size:13px}
+.ct .d{width:8px;height:8px;border-radius:50%}.ct .tk{grid-column:2/-1;height:4px;border-radius:2px;background:var(--s);overflow:hidden}.ct .tk i{display:block;height:100%;border-radius:2px}
+button{margin-top:8px;width:100%;padding:8px;border:0;border-radius:10px;background:var(--tg-theme-button-color,#8774e1);color:var(--tg-theme-button-text-color,#fff);font:inherit;font-weight:600}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+<div class="w" id="w"></div>
+<script>
+const W=window.TelegramWidget,R=n=>Math.round(n).toLocaleString('ru-RU')+' ₽',C=['#a98bff','#7fb2f0','#e6c590','#d68fd6','#8fd4b4'],$=document.getElementById('w');
+function draw(){let s=null;try{s=JSON.parse(W&&W.chatData)}catch(e){}
+if(!s||s.e==null){$.innerHTML='<div class="h">Нет данных. Откройте приложение, и бот увидит ваши операции.</div>';return}
+const i=s.i,e=s.e,b=i-e,mo=s.mo,mx=Math.max(1,...mo.flatMap(x=>[x[1],x[2]||0])),ct=s.c||[],cm=ct.length?ct[0][1]:1;
+$.innerHTML=`<div class="h">Итоги месяца, ${s.m}</div><div class="p"><div class="h"><span class="k" style="background:var(--in)"></span>Заработал<b style="color:var(--t)">${R(i)}</b></div><div class="h"><span class="k" style="background:var(--ex)"></span>Потратил<b style="color:var(--t)">${R(e)}</b></div></div><div class="bl">${b>=0?'Осталось':'Ушли в минус на'} <b>${R(Math.abs(b))}</b>${i>0?`, это ${Math.round(Math.abs(b)/i*100)}% дохода`:''}</div><div class="rb"><i id="ri" style="background:var(--in);flex-grow:1"></i><i id="re" style="background:var(--ex);flex-grow:1"></i></div><div class="lg"><span><span class="k" style="background:var(--in)"></span>Доходы</span><span><span class="k" style="background:var(--ex)"></span>Расходы</span></div><div class="c">${mo.map((x,k)=>`<div class="g"><i style="background:var(--in);height:${x[1]/mx*100}%;animation-delay:${k*.05}s"></i><i style="background:var(--ex);height:${(x[2]||0)/mx*100}%;animation-delay:${k*.05+.03}s"></i></div>`).join('')}</div><div class="ml">${mo.map((x,k)=>`<span class="${k==mo.length-1?'on':''}">${x[0]}</span>`).join('')}</div>${ct.length?'<div class="h" style="margin-bottom:8px">Куда ушли деньги</div>'+ct.map((c,k)=>`<div class="ct"><span class="d" style="background:${C[k]}"></span><span>${c[0]}</span><b>${R(c[1])}</b><span class="tk"><i style="width:${c[1]/cm*100}%;background:${C[k]}"></i></span></div>`).join(''):''}<button id="u">Обновить</button>`;
+requestAnimationFrame(()=>requestAnimationFrame(()=>{document.getElementById('ri').style.flexGrow=i||1;document.getElementById('re').style.flexGrow=e||1}));
+document.getElementById('u').onclick=ev=>{const t=ev.target;t.textContent='Обновляю…';W.request('refresh').then(()=>W.HapticFeedback.notificationOccurred('success'),()=>{t.textContent='Обновить'})}}
+if(W){W.onEvent('chatDataChanged',draw);W.ready()}draw();
+</script>

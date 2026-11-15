@@ -606,7 +606,7 @@ function persist() {
 }
 
 // ---------- Сводка для бота (/level) ----------
-// В бот уходит только уровень месяца: доход за текущий месяц и доходы за 6 месяцев.
+// В бот уходит короткая сводка: доходы и расходы за 6 месяцев и 5 главных категорий трат текущего месяца.
 const BOT_SYNC_URL = 'https://fin.matrash37.workers.dev/sync';
 let botSyncTimer = null, lastBotSync = '';
 function syncToBot() {
@@ -617,9 +617,12 @@ function syncToBot() {
     const mo = [];
     for (let k = 5; k >= 0; k--) {
       const idx = now.getFullYear() * 12 + now.getMonth() - k, y = Math.floor(idx / 12), m = idx % 12;
-      mo.push([short[m], Math.round(sumBy(monthOf(y, m), 1))]);
+      const rows = monthOf(y, m);
+      mo.push([short[m], Math.round(sumBy(rows, 1)), Math.round(sumBy(rows, 0))]);
     }
-    const summary = {m: new Date(now.getFullYear(), now.getMonth(), 1).toLocaleDateString('ru-RU', {month: 'long'}), i: mo[5][1], mo};
+    const cs = catSums(monthOf(now.getFullYear(), now.getMonth()));
+    const c = Object.entries(cs).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([k, v]) => [catName(k), Math.round(v)]);
+    const summary = {m: new Date(now.getFullYear(), now.getMonth(), 1).toLocaleDateString('ru-RU', {month: 'long'}), i: mo[5][1], e: mo[5][2], mo, c};
     const body = JSON.stringify({initData: tg.initData, summary});
     if (body === lastBotSync) return;
     fetch(BOT_SYNC_URL, {method: 'POST', headers: {'Content-Type': 'application/json'}, body})
