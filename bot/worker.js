@@ -166,7 +166,8 @@ ${'▰'.repeat(filled)}${'▱'.repeat(10 - filled)}
 async function sendStats(env, chat, userId) {
   const raw = await getSummary(env, userId);
   const s = raw ? JSON.parse(raw) : null;
-  if (!s || s.e == null) return send(env, chat, 'Пока не вижу ваших расходов. Откройте приложение один раз, и команда /stats заработает.', KB(env));
+  if (!s) return send(env, chat, 'Пока не вижу ваших данных. Откройте приложение один раз, и команда /stats заработает.', KB(env));
+  if (s.e == null) return send(env, chat, 'У вас открыта старая версия приложения, она не присылает расходы. Полностью закройте приложение (свайпом вниз или кнопкой «Закрыть»), откройте его снова и через пару секунд повторите /stats.', KB(env));
   const r = await tg(env, 'sendWidget', {chat_id: chat, html: STATS_HTML, chat_data: raw, allow_queries: true, height: 0, width: 0,
     reply_markup: {inline_keyboard: [[{text: '💰 Открыть финансы', web_app: {url: env.WEBAPP_URL}}]]}});
   if (r.ok) return r;
@@ -199,7 +200,8 @@ async function sync(request, env) {
   const user = await checkInitData(body.initData || '', env.BOT_TOKEN);
   if (!user) return new Response('forbidden', {status: 403, headers: cors});
   const s = body.summary || {};
-  const clean = JSON.stringify({m: String(s.m || '').slice(0, 20), i: +s.i || 0, e: +s.e || 0,
+  // старые версии приложения не присылают расходы: тогда e = null, а не 0
+  const clean = JSON.stringify({m: String(s.m || '').slice(0, 20), i: +s.i || 0, e: s.e == null ? null : +s.e || 0,
     mo: (Array.isArray(s.mo) ? s.mo : []).slice(-6).map(x => [String(x[0]).slice(0, 4), +x[1] || 0, +x[2] || 0]),
     c: (Array.isArray(s.c) ? s.c : []).slice(0, 5).map(x => [String(x[0]).slice(0, 18), +x[1] || 0])});
   if (clean.length > 1000) return new Response('too large', {status: 413, headers: cors});
