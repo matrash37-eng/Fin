@@ -150,6 +150,7 @@
   .chip i { width: 7px; height: 7px; border-radius: 50%; }
   .chip.on { color: #EFE8FF; border-color: rgba(157,123,255,.7); background: var(--violet-tint); }
   .field { width: 100%; background: rgba(0,0,0,.35); border: 1px solid transparent; border-radius: var(--r); padding: 14px; font: inherit; color: var(--ink); margin-bottom: 10px; outline: none; }
+  .field:focus-visible { outline: none; }
   .field:focus { border-color: rgba(157,123,255,.5); }
   .field::placeholder { color: var(--faint); }
   .sheet .btn-main { width: 100%; margin-top: 6px; }
@@ -428,6 +429,7 @@
   <div class="chips" id="catPicker"></div>
   <input class="field" id="client" type="text" placeholder="Клиент или от кого пришли деньги" maxlength="40" aria-label="Клиент" list="clientList" autocomplete="off" hidden>
   <datalist id="clientList"></datalist>
+  <p class="note" id="clientHint" hidden style="margin:-4px 2px 12px;font-size:12px"></p>
   <input class="field" id="note" type="text" placeholder="Комментарий" maxlength="60" aria-label="Комментарий">
   <input class="field" id="date" type="date" aria-label="Дата">
   <button class="toggle" id="offToggle" role="switch" aria-checked="false">
@@ -517,10 +519,11 @@ let tx = [];
 let rules = {};    // «магазин» -> [тип, категория]: запомненные исправления
 let limits = {};   // категория расхода -> лимит в месяц
 let ach = {};      // "ГГГГ-ММ" -> [пороги, награды за которые уже получены]
+let crules = {};   // отправитель (номер или имя) -> клиент
 function applyState(d) {
-  if (Array.isArray(d)) { tx = d; rules = {}; limits = {}; ach = {}; }
-  else if (d && typeof d === 'object') { tx = d.tx || []; rules = d.rules || {}; limits = d.limits || {}; ach = d.ach || {}; }
-  else { tx = []; rules = {}; limits = {}; ach = {}; }
+  if (Array.isArray(d)) { tx = d; rules = {}; limits = {}; ach = {}; crules = {}; }
+  else if (d && typeof d === 'object') { tx = d.tx || []; rules = d.rules || {}; limits = d.limits || {}; ach = d.ach || {}; crules = d.crules || {}; }
+  else { tx = []; rules = {}; limits = {}; ach = {}; crules = {}; }
 }
 let cloudPtr = null;   // {slot, n, ts}
 
@@ -568,7 +571,7 @@ async function load() {
 
 let saving = Promise.resolve(), pendingSaves = 0;
 function persist() {
-  const data = JSON.stringify({v: 2, tx, rules, limits, ach});
+  const data = JSON.stringify({v: 2, tx, rules, limits, ach, crules});
   const ts = Date.now();
   writeLocal(data, ts);
   if (!hasCloud) return Promise.resolve();
@@ -655,7 +658,23 @@ function merchantKey(note) {
 }
 const RE_OWN = /между своими|своими счетами|на свой сч[её]т|[нс]а? ?накопительн|со? ?сберегательн|в копилк|из копилк|пополнение вклада|на вклад|с вклада/i;
 
-const clientOf = r => r[1] === 1 ? (r[7] || guessClient(r[5]) || '') : '';
+// отправитель платежа: номер телефона (если есть в описании) или имя
+const RE_PHONE = /(?:\+7|(?:^|[^\d])8|(?:^|[^\d])7)?[\s(-]*(9[\d*]{2})[\s)-]*([\d*]{3})[\s-]*([\d*]{2})[\s-]*(\d{2})(?!\d)/;
+function payerKey(note) {
+  if (!note) return '';
+  const ph = note.match(RE_PHONE);
+  if (ph) return 'tel:' + ph[1] + ph[2] + ph[3] + ph[4];
+  const name = note.toLowerCase().replace(/ё/g, 'е')
+    .replace(/(^|\s)(входящий|входящ\S*|перевод\S*|зачислени\S*|поступлени\S*|пополнени\S*|сбп|по номеру|телефона|от|из|через|на|карту|счет|сч[её]т)(?=\s|$)/g, ' ')
+    .replace(/[^a-zа-я. ]+/g, ' ').replace(/\s+/g, ' ').trim();
+  return name.replace(/[^a-zа-я]/g, '').length >= 3 ? 'name:' + name.slice(0, 40) : '';
+}
+function payerLabel(key) {
+  if (!key) return '';
+  if (key.startsWith('tel:')) { const d = key.slice(4); return `+7 ${d.slice(0, 3)} ${d.slice(3, 6)}-${d.slice(6, 8)}-${d.slice(8)}`; }
+  return key.slice(5).replace(/(^|\s)(ооо|ип|ао|пао|зао)(?=\s|$)/g, (s, sp, w) => sp + w.toUpperCase()).replace(/^\S|(\s)([а-яa-z])(?=\.|\S*\s+[а-яa-z]\.)/g, s => s.toUpperCase()).replace(/^./, s => s.toUpperCase());
+}
+const clientOf = r => r[1] === 1 ? (r[7] || crules[payerKey(r[5])] || guessClient(r[5]) || '') : '';
 function knownClients() {
   const s = new Map();
   tx.forEach(r => { const c = clientOf(r); if (c) s.set(c, (s.get(c) || 0) + 1); });
@@ -1184,6 +1203,7 @@ function renderCatPicker() {
     `<button class="chip ${i === formCat ? 'on' : ''}" data-i="${i}"><i style="background:${catColor(formType, i)}"></i>${c[1]}</button>`).join('');
   document.querySelectorAll('#typeTabs button').forEach(b => b.classList.toggle('on', b.dataset.t === formType));
   document.getElementById('client').hidden = formType !== 'inc';
+  updateClientHint();
 }
 
 function openSheet(row) {
@@ -1193,7 +1213,7 @@ function openSheet(row) {
   document.getElementById('sheetTitle').textContent = row ? 'Редактирование' : 'Новая операция';
   document.getElementById('amount').value = row ? String(row[2]).replace('.', ',') : '';
   document.getElementById('note').value = row ? row[5] || '' : '';
-  document.getElementById('client').value = row ? row[7] || '' : '';
+  document.getElementById('client').value = row ? (row[7] || crules[payerKey(row[5])] || '') : '';
   document.getElementById('clientList').innerHTML = knownClients().map(c => `<option value="${esc(c)}">`).join('');
   const defDate = row ? new Date(row[4] * 1000)
     : (viewY === now.getFullYear() && viewM === now.getMonth() ? new Date() : new Date(viewY, viewM, 1));
@@ -1234,6 +1254,7 @@ function save() {
     const r = tx.find(x => x[0] === editingId);
     if (r) {
       const catChanged = r[1] !== t || r[3] !== formCat;
+      const prevClient = clientOf(r);
       r[1] = t; r[2] = amount; r[3] = formCat; r[4] = ts; r[5] = note; r[6] = r[6] || ''; r[7] = client; r[8] = formOff ? 1 : 0;
       // запоминаем исправленную категорию для этого «магазина»
       const key = merchantKey(note);
@@ -1247,8 +1268,36 @@ function save() {
   haptic('success');
   closeSheet();
   render();
+  const r2 = editingId && tx.find(x => x[0] === editingId);
+  if (r2 && t === 1) {
+    const pk = payerKey(note);
+    if (pk && client && crules[pk] !== client) return applyClientRule(pk, client, r2[0], learned);
+    if (pk && !client && crules[pk]) { delete crules[pk]; persist(); render(); }
+  }
   if (learned) offerApplyRule(learned);
   else checkAchievements();
+}
+
+// «этот номер = этот клиент»: запоминаем и переписываем все платежи от отправителя
+function applyClientRule(pk, client, id, learned) {
+  crules[pk] = client;
+  let n = 0;
+  tx.forEach(x => { if (x[1] === 1 && x[0] !== id && payerKey(x[5]) === pk && x[7] !== client) { x[7] = client; n++; } });
+  persist(); render();
+  const who = pk.startsWith('tel:') ? `с номера ${payerLabel(pk)}` : `от «${payerLabel(pk)}»`;
+  const msg = `Запомнил: все платежи ${who} теперь записываются на «${client}».` + (n ? ` Обновил ещё ${n} ${plural(n, 'платёж', 'платежа', 'платежей')}.` : '');
+  haptic('success');
+  const next = () => learned ? offerApplyRule(learned) : checkAchievements();
+  if (tg) tg.showAlert(msg, next); else { alert(msg); next(); }
+}
+function updateClientHint() {
+  const el = document.getElementById('clientHint');
+  const pk = payerKey(document.getElementById('note').value.trim());
+  el.hidden = formType !== 'inc' || !editingId;
+  if (el.hidden) return;
+  el.textContent = pk
+    ? `Все платежи ${pk.startsWith('tel:') ? 'с номера ' + payerLabel(pk) : 'от «' + payerLabel(pk) + '»'} будут записываться на этого клиента`
+    : 'В описании нет номера или имени отправителя, поэтому клиент запишется только для этой операции';
 }
 
 // после исправления категории: предложить поменять похожие операции
@@ -1322,6 +1371,7 @@ document.getElementById('list').onclick = e => {
   const r = tx.find(x => x[0] === +el.dataset.id); if (r) openSheet(r);
 };
 document.getElementById('amount').addEventListener('keydown', e => { if (e.key === 'Enter') save(); });
+document.getElementById('note').addEventListener('input', updateClientHint);
 document.getElementById('offToggle').onclick = () => {
   formOff = !formOff;
   document.getElementById('offToggle').setAttribute('aria-checked', String(formOff));
@@ -1517,7 +1567,7 @@ async function handleFile(file) {
       if (byRule) { cat = rule[1]; learnedHits++; }
       const own = RE_OWN.test(text) && !/процент|капитализ/i.test(text);
       return {row: [Date.now() * 1000 + (seq++), isInc ? 1 : 0, Math.round(o.amount * 100) / 100,
-                    cat, Math.floor(+o.d / 1000), note, key, isInc ? guessClient(desc) : '', own ? 1 : 0],
+                    cat, Math.floor(+o.d / 1000), note, key, isInc ? (crules[payerKey(note)] || guessClient(desc)) : '', own ? 1 : 0],
               dup: existing.has(key)};
     });
     // убираем дубли внутри самой выписки
