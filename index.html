@@ -229,7 +229,81 @@
   .pick.on { color: #EFE8FF; border-color: rgba(157,123,255,.6); background-color: var(--violet-tint); }
   .found { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; font-size: 13px; color: var(--muted); margin-bottom: 8px; }
   .found button { color: var(--violet-2); font-size: 13px; }
-  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+  /* ===== уровень месяца ===== */
+  .level { position: relative; overflow: hidden;
+           background: linear-gradient(140deg, rgba(242,193,78,.20), rgba(157,123,255,.10) 55%, rgba(14,12,22,.35)); border-color: rgba(242,193,78,.22); }
+  .level-top { display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: var(--muted); margin-bottom: 10px; }
+  .level-name { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+  .level-name b { font-size: 28px; font-weight: 600; letter-spacing: -0.02em; }
+  .lvl-track { height: 8px; border-radius: 4px; background: rgba(255,255,255,.08); overflow: hidden; margin-bottom: 8px; }
+  .lvl-track i { display: block; height: 100%; border-radius: 4px; background: linear-gradient(90deg, #E9A93B, #F7D774); box-shadow: 0 0 14px rgba(247,215,116,.45); transition: width .8s cubic-bezier(.2,.8,.2,1); }
+  .lvl-text { font-size: 13px; color: var(--muted); }
+  .lvl-text b { color: var(--ink); font-weight: 500; }
+  .medals { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 16px; }
+  .medal-cell { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 6px 10px; border-radius: 14px; background: rgba(0,0,0,.25); }
+  .medal-cell span { font-size: 12px; color: var(--faint); }
+  .medal-cell strong { font-size: 15px; font-weight: 500; }
+  .medal-cell.locked strong { color: var(--faint); }
+  .medal { --s: 40px; width: var(--s); height: var(--s); border-radius: 50%; flex-shrink: 0; display: grid; place-items: center; font-weight: 700; font-size: calc(var(--s) * .3); color: rgba(40,24,0,.78); letter-spacing: -0.02em;
+           box-shadow: inset 0 2px 3px rgba(255,255,255,.55), inset 0 -3px 5px rgba(0,0,0,.25), 0 4px 14px rgba(0,0,0,.35); }
+  .medal.bronze { background: radial-gradient(circle at 35% 30%, #F4C39A, #C27A45 60%, #8E5126); }
+  .medal.silver { background: radial-gradient(circle at 35% 30%, #FFFFFF, #C4CAD3 55%, #8A929E); color: rgba(30,34,40,.75); }
+  .medal.gold   { background: radial-gradient(circle at 35% 30%, #FFF1B8, #F2C14E 55%, #B9821B); }
+  .medal.locked { background: radial-gradient(circle at 35% 30%, #4A4752, #2B2931 70%); color: rgba(255,255,255,.35); box-shadow: inset 0 1px 2px rgba(255,255,255,.12); }
+
+  /* ===== экран достижения ===== */
+  .ach { position: fixed; inset: 0; z-index: 50; display: none; overflow: hidden; color: #fff; text-align: center;
+         background: radial-gradient(90% 60% at 50% 38%, #2A2210 0%, #0C0A06 55%, #000 100%); -webkit-user-select: none; user-select: none; }
+  .ach.show { display: block; animation: achIn .35s ease; }
+  @keyframes achIn { from { opacity: 0; } }
+  .ach canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  .ach-stage { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; }
+  .orb-wrap { overflow: visible; outline: none; position: relative; width: 210px; height: 210px; display: grid; place-items: center; margin-bottom: 26px; cursor: pointer; }
+  .orb { width: 128px; height: 128px; border-radius: 50%;
+         background: radial-gradient(circle at 36% 30%, #FFF6C9 0%, #FFD54A 28%, #F0A814 62%, #9A5C00 100%);
+         box-shadow: inset -10px -14px 30px rgba(120,60,0,.45); position: relative; z-index: 1;
+         animation: orbPulse 2.2s ease-in-out infinite; transition: transform .35s cubic-bezier(.3,1.6,.5,1), opacity .35s; }
+  @keyframes orbPulse { 50% { transform: scale(1.05); } }
+  .orb-wrap::before { content: ""; position: absolute; left: 50%; top: 50%; width: 460px; height: 460px; margin: -230px 0 0 -230px; border-radius: 50%; pointer-events: none;
+    background: radial-gradient(circle, rgba(255,200,60,.55) 0%, rgba(255,180,30,.28) 18%, rgba(255,160,0,.10) 36%, rgba(255,160,0,0) 60%);
+    animation: glow 2.2s ease-in-out infinite; transition: opacity .35s; }
+  @keyframes glow { 50% { opacity: .75; } }
+  .orb-wrap.pop::before { opacity: 0; }
+  .ring { position: absolute; inset: 0; border-radius: 50%; border: 1px dashed rgba(255,200,80,.35); animation: spin 14s linear infinite; }
+  .ring.r2 { inset: 18px; border-style: solid; border-color: rgba(255,200,80,.18) transparent rgba(255,200,80,.5) transparent; animation-duration: 6s; animation-direction: reverse; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .orb-wrap.pop .orb { transform: scale(1.6); opacity: 0; }
+  .orb-wrap.pop .ring { opacity: 0; transition: opacity .2s; }
+  .ach h3 { font-size: 24px; font-weight: 600; margin: 0 0 6px; letter-spacing: -0.01em; }
+  .ach .hint { color: rgba(255,255,255,.55); font-size: 14px; margin: 0; }
+  .flash { position: absolute; inset: 0; background: #FFF6D6; opacity: 0; pointer-events: none; }
+  .flash.go { animation: flash .6s ease-out; }
+  @keyframes flash { 0% { opacity: 0; } 15% { opacity: .85; } 100% { opacity: 0; } }
+  .rays { position: absolute; left: 50%; top: 30%; width: 260vmax; height: 260vmax; transform: translate(-50%, -50%);
+          background: repeating-conic-gradient(from 0deg, rgba(255,200,70,.20) 0deg 7deg, rgba(255,200,70,0) 7deg 20deg);
+          -webkit-mask-image: radial-gradient(circle, #000 0%, rgba(0,0,0,.6) 25%, transparent 55%); mask-image: radial-gradient(circle, #000 0%, rgba(0,0,0,.6) 25%, transparent 55%);
+          animation: raysSpin 60s linear infinite; opacity: 0; transition: opacity .8s; }
+  .ach.revealed .rays { opacity: 1; }
+  @keyframes raysSpin { to { transform: translate(-50%, -50%) rotate(360deg); } }
+  .reveal { justify-content: flex-start; padding-top: 14vh; opacity: 0; pointer-events: none; }
+  .ach.revealed .reveal { opacity: 1; pointer-events: auto; }
+  .ach.revealed .stage-orb { opacity: 0; pointer-events: none; transition: opacity .2s; }
+  .big-medal { --s: 112px; margin-bottom: 22px; font-size: 30px; box-shadow: inset 0 3px 5px rgba(255,255,255,.6), inset 0 -6px 10px rgba(0,0,0,.25), 0 0 0 6px rgba(255,255,255,.06), 0 0 60px rgba(255,200,70,.45); }
+  .ach.revealed .big-medal { animation: medalIn .7s cubic-bezier(.3,1.6,.5,1) both; }
+  @keyframes medalIn { from { transform: scale(.2) rotate(-25deg); opacity: 0; } }
+  .ach-title { font-size: 30px; font-weight: 700; letter-spacing: .01em; margin: 0 0 4px;
+               background: linear-gradient(180deg, #FFF3C2, #F2B632); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+  .ach-sum { font-size: clamp(44px, 14vw, 64px); font-weight: 600; letter-spacing: -0.03em; line-height: 1.05; text-shadow: 0 0 30px rgba(255,210,90,.45); font-feature-settings: "tnum" 1; }
+  .ach-sub { color: rgba(255,255,255,.6); font-size: 14px; margin: 6px 0 18px; }
+  .ach-phrase { font-size: 16px; margin: 0 0 6px; max-width: 320px; }
+  .ach-more { color: rgba(255,255,255,.5); font-size: 13px; min-height: 18px; margin: 0 0 22px; }
+  .ach-btn { min-height: 50px; padding: 0 30px; border-radius: 25px; background: #fff; color: #1A1408; font-weight: 600; font-size: 15px; box-shadow: 0 10px 30px -6px rgba(255,210,90,.55); transition: transform .1s; }
+  .ach-btn:active { transform: scale(.96); }
+  .ach.revealed .ach-title, .ach.revealed .ach-sum, .ach.revealed .ach-sub, .ach.revealed .ach-phrase, .ach.revealed .ach-more, .ach.revealed .ach-btn { animation: up .5s cubic-bezier(.2,.8,.2,1) both; }
+  .ach.revealed .ach-sum { animation-delay: .1s; } .ach.revealed .ach-sub { animation-delay: .15s; }
+  .ach.revealed .ach-phrase { animation-delay: .5s; } .ach.revealed .ach-more { animation-delay: .6s; } .ach.revealed .ach-btn { animation-delay: .9s; }
+  @keyframes up { from { opacity: 0; transform: translateY(14px); } }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; } }
 </style>
 </head>
 <body>
@@ -253,6 +327,14 @@
     </div>
     <div class="alltime">На счету за всё время: <span id="allTime">0 ₽</span></div>
   </div>
+
+  <section class="glass level" id="levelSec" aria-label="Уровень месяца">
+    <div class="level-top"><span>Уровень месяца</span><span id="lvlStep"></span></div>
+    <div class="level-name"><span id="lvlMedal"></span><b id="lvlName"></b></div>
+    <div class="lvl-track" role="progressbar" aria-label="Прогресс до следующего уровня" id="lvlBar"><i id="lvlFill" style="width:0"></i></div>
+    <div class="lvl-text" id="lvlText"></div>
+    <div class="medals" id="medals"></div>
+  </section>
 
   <section class="glass" id="tipsSec">
     <div class="sec-head"><h2>Советы</h2><span class="tag">по вашим данным</span></div>
@@ -313,6 +395,26 @@
   </div>
 </div>
 <input type="file" id="fileInput" accept="application/pdf,.pdf" hidden>
+
+<div class="ach" id="ach" role="dialog" aria-modal="true" aria-label="Новое достижение">
+  <div class="rays"></div>
+  <canvas id="achCanvas"></canvas>
+  <div class="flash" id="achFlash"></div>
+  <div class="ach-stage stage-orb" id="achOrbStage">
+    <div class="orb-wrap" id="achOrb" role="button" tabindex="0" aria-label="Открыть достижение"><span class="ring"></span><span class="ring r2"></span><span class="orb"></span></div>
+    <h3>Новое достижение</h3>
+    <p class="hint">Нажмите, чтобы открыть</p>
+  </div>
+  <div class="ach-stage reveal">
+    <div class="medal big-medal" id="achMedal"></div>
+    <p class="ach-title" id="achTitle"></p>
+    <div class="ach-sum" id="achSum">0 ₽</div>
+    <p class="ach-sub" id="achSub"></p>
+    <p class="ach-phrase" id="achPhrase"></p>
+    <p class="ach-more" id="achMore"></p>
+    <button class="ach-btn" id="achClaim">Забрать награду</button>
+  </div>
+</div>
 
 <div class="overlay" id="overlay"></div>
 <div class="sheet" id="sheet" role="dialog" aria-labelledby="sheetTitle">
@@ -414,10 +516,11 @@ function chunkByBytes(str, max) {
 let tx = [];
 let rules = {};    // «магазин» -> [тип, категория]: запомненные исправления
 let limits = {};   // категория расхода -> лимит в месяц
+let ach = {};      // "ГГГГ-ММ" -> [пороги, награды за которые уже получены]
 function applyState(d) {
-  if (Array.isArray(d)) { tx = d; rules = {}; limits = {}; }
-  else if (d && typeof d === 'object') { tx = d.tx || []; rules = d.rules || {}; limits = d.limits || {}; }
-  else { tx = []; rules = {}; limits = {}; }
+  if (Array.isArray(d)) { tx = d; rules = {}; limits = {}; ach = {}; }
+  else if (d && typeof d === 'object') { tx = d.tx || []; rules = d.rules || {}; limits = d.limits || {}; ach = d.ach || {}; }
+  else { tx = []; rules = {}; limits = {}; ach = {}; }
 }
 let cloudPtr = null;   // {slot, n, ts}
 
@@ -465,7 +568,7 @@ async function load() {
 
 let saving = Promise.resolve(), pendingSaves = 0;
 function persist() {
-  const data = JSON.stringify({v: 2, tx, rules, limits});
+  const data = JSON.stringify({v: 2, tx, rules, limits, ach});
   const ts = Date.now();
   writeLocal(data, ts);
   if (!hasCloud) return Promise.resolve();
@@ -703,6 +806,207 @@ function renderTips(list, prevList) {
     .map(t => `<div class="tip ${t.cls}"><div><b>${esc(t.t)}</b><p>${esc(t.p)}</p></div></div>`).join('');
 }
 
+// ---------- Уровни и достижения ----------
+const LEVELS = [
+  {t: 60000,  name: 'Бронза',  short: '60к',  cls: 'bronze', title: '60 000!',     phrase: 'Первая планка взята. Отличный месяц.'},
+  {t: 80000,  name: 'Серебро', short: '80к',  cls: 'silver', title: '80 000!',     phrase: 'Серебро. До сотни уже рукой подать.'},
+  {t: 100000, name: 'Золото',  short: '100к', cls: 'gold',   title: 'СТО ТЫСЯЧ!',  phrase: 'Шестизначный месяц. Это уровень.'},
+];
+const monthKey = (y, m) => `${y}-${String(m + 1).padStart(2, '0')}`;
+const medalHtml = (lv, size, locked) => `<span class="medal ${locked ? 'locked' : lv.cls}" style="--s:${size}px">${lv.short}</span>`;
+const monthLabel = (y, m) => new Date(y, m, 1).toLocaleDateString('ru-RU', {month: 'long', year: 'numeric'}).replace(' г.', '');
+
+function monthsWithIncome() {
+  const map = new Map();
+  tx.filter(counted).filter(r => r[1] === 1).forEach(r => {
+    const d = new Date(r[4] * 1000), k = monthKey(d.getFullYear(), d.getMonth());
+    const e = map.get(k) || {y: d.getFullYear(), m: d.getMonth(), inc: 0};
+    e.inc += r[2]; map.set(k, e);
+  });
+  return [...map.values()];
+}
+
+function renderLevel(inc) {
+  let lvl = 0;
+  LEVELS.forEach((L, i) => { if (inc >= L.t) lvl = i + 1; });
+  const cur = LEVELS[lvl - 1], next = LEVELS[lvl];
+  const from = cur ? cur.t : 0;
+  document.getElementById('lvlStep').textContent = `${lvl} из ${LEVELS.length}`;
+  document.getElementById('lvlMedal').innerHTML = cur ? medalHtml(cur, 44) : `<span class="medal locked" style="--s:44px">0</span>`;
+  document.getElementById('lvlName').textContent = cur ? cur.name : 'Старт';
+  const pct = next ? Math.max(0, Math.min(100, (inc - from) / (next.t - from) * 100)) : 100;
+  document.getElementById('lvlFill').style.width = pct + '%';
+  document.getElementById('lvlBar').setAttribute('aria-valuenow', Math.round(pct));
+  document.getElementById('lvlText').innerHTML = next
+    ? `Пришло <b>${fmt(inc)}</b>. До уровня «${next.name}» ещё <b>${fmt(next.t - inc)}</b>`
+    : `Пришло <b>${fmt(inc)}</b>. Максимальный уровень${inc > from ? `, сверх него <b>${fmt(inc - from)}</b>` : ''}`;
+  const months = monthsWithIncome();
+  document.getElementById('medals').innerHTML = LEVELS.map((L, i) => {
+    const n = months.filter(x => x.inc >= L.t).length;
+    const got = inc >= L.t;
+    return `<button class="medal-cell ${n ? '' : 'locked'}" data-i="${i}" aria-label="${L.name}: ${n} мес.">${medalHtml(L, 38, !n)}<strong>${fmtNum(L.t)}</strong><span>${n ? `${n} ${plural(n, 'месяц', 'месяца', 'месяцев')}` : got ? 'в этом месяце' : 'пока нет'}</span></button>`;
+  }).join('');
+}
+
+// какие награды ещё не получены: анимация — только за текущий и прошлый месяц
+function collectPending() {
+  const curIdx = now.getFullYear() * 12 + now.getMonth();
+  const pending = [];
+  let silent = false;
+  monthsWithIncome().forEach(x => {
+    const k = monthKey(x.y, x.m), got = ach[k] || [];
+    const fresh = LEVELS.filter(L => x.inc >= L.t && !got.includes(L.t));
+    if (!fresh.length) return;
+    if (x.y * 12 + x.m >= curIdx - 1) pending.push({...x, L: fresh[fresh.length - 1], all: fresh.map(L => L.t)});   // одна высшая награда за месяц
+    else { ach[k] = [...got, ...fresh.map(L => L.t)]; silent = true; }
+  });
+  if (silent) persist();
+  return pending.sort((a, b) => (a.y * 12 + a.m) - (b.y * 12 + b.m) || a.L.t - b.L.t);
+}
+
+let achQueue = [], achReplay = false;
+function checkAchievements() {
+  if (document.getElementById('ach').classList.contains('show')) return false;
+  achQueue = collectPending();
+  if (!achQueue.length) return false;
+  achReplay = false;
+  openAch();
+  return true;
+}
+function replayAchievement(i) {
+  const L = LEVELS[i];
+  const months = monthsWithIncome().filter(x => x.inc >= L.t).sort((a, b) => (b.y * 12 + b.m) - (a.y * 12 + a.m));
+  if (!months.length) { if (tg) tg.showAlert(`Медаль «${L.name}» откроется, когда за месяц придёт ${fmt(L.t)}.`); return; }
+  const sel = months.find(x => x.y === viewY && x.m === viewM) || months[0];
+  achQueue = [{...sel, L}]; achReplay = true;
+  openAch(true);
+}
+
+function openAch(skipOrb) {
+  const el = document.getElementById('ach');
+  el.classList.remove('revealed');
+  document.getElementById('achOrb').classList.remove('pop');
+  el.classList.add('show');
+  try { tg && tg.HapticFeedback.impactOccurred('light'); } catch (e) {}
+  startParticles('orb');
+  if (skipOrb) setTimeout(revealAch, 50);
+}
+
+function revealAch() {
+  const a = achQueue[0]; if (!a) return closeAch();
+  const el = document.getElementById('ach');
+  document.getElementById('achOrb').classList.add('pop');
+  const fl = document.getElementById('achFlash'); fl.classList.remove('go'); void fl.offsetWidth; fl.classList.add('go');
+  try { tg && tg.HapticFeedback.impactOccurred('heavy'); } catch (e) {}
+  document.getElementById('achMedal').className = 'medal big-medal ' + a.L.cls;
+  document.getElementById('achMedal').textContent = a.L.short;
+  document.getElementById('achTitle').textContent = a.L.title;
+  document.getElementById('achSub').textContent = `пришло за ${monthLabel(a.y, a.m)}`;
+  const top = topClientOf(a.y, a.m);
+  document.getElementById('achPhrase').textContent = a.L.phrase + (top ? ` Больше всего принёс клиент «${top}».` : '');
+  const more = achQueue.length - 1;
+  document.getElementById('achMore').textContent = more > 0 ? `И ещё ${more} ${plural(more, 'награда', 'награды', 'наград')} ждёт` : '';
+  document.getElementById('achClaim').textContent = achReplay ? 'Закрыть' : more > 0 ? 'Забрать и открыть следующую' : 'Забрать награду';
+  setTimeout(() => {
+    el.classList.add('revealed');
+    startParticles('burst');
+    try { tg && tg.HapticFeedback.notificationOccurred('success'); } catch (e) {}
+    countUp(document.getElementById('achSum'), a.inc);
+  }, 260);
+}
+
+function topClientOf(y, m) {
+  const s = new Map();
+  monthOf(y, m).filter(r => r[1] === 1).forEach(r => { const c = clientOf(r); if (c) s.set(c, (s.get(c) || 0) + r[2]); });
+  const t = [...s.entries()].sort((a, b) => b[1] - a[1])[0];
+  return t ? t[0] : '';
+}
+
+function countUp(node, target) {
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reduce) { node.textContent = fmt(target); return; }
+  const t0 = performance.now(), dur = 1400;
+  const step = t => {
+    const k = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - k, 4);
+    node.textContent = fmt(Math.round(target * e));
+    if (k < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+
+function claimAch() {
+  const a = achQueue.shift();
+  if (a && !achReplay) {
+    const k = monthKey(a.y, a.m);
+    ach[k] = [...new Set([...(ach[k] || []), ...(a.all || [a.L.t])])];
+    persist();
+  }
+  if (achQueue.length && !achReplay) {
+    document.getElementById('ach').classList.remove('revealed');
+    document.getElementById('achOrb').classList.remove('pop');
+    startParticles('orb');
+    return;
+  }
+  closeAch();
+}
+function closeAch() {
+  document.getElementById('ach').classList.remove('show', 'revealed');
+  stopParticles();
+  render();
+}
+
+// --- частицы: искры вокруг сферы и золотой салют ---
+let pRAF = null, parts = [], pMode = 'orb';
+function startParticles(mode) {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const cv = document.getElementById('achCanvas'), ctx = cv.getContext('2d');
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const W = cv.clientWidth, H = cv.clientHeight;
+  cv.width = W * dpr; cv.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  pMode = mode;
+  const cx = W / 2, cy = mode === 'orb' ? H / 2 - 40 : H * 0.14 + 56 + H * 0.0;
+  const gold = ['#FFE08A', '#FFC93C', '#FFF4CF', '#F2A814', '#FFFFFF'];
+  if (mode === 'orb') {
+    parts = Array.from({length: 46}, () => ({orbit: true, a: Math.random() * Math.PI * 2, r: 70 + Math.random() * 60, sp: (Math.random() * .6 + .2) * (Math.random() < .5 ? -1 : 1) / 60,
+      s: Math.random() * 1.8 + .6, c: gold[Math.random() * gold.length | 0], tw: Math.random() * Math.PI * 2}));
+  } else {
+    const medalY = document.getElementById('achMedal').getBoundingClientRect();
+    const by = medalY.top + medalY.height / 2 || cy;
+    parts = Array.from({length: 140}, () => {
+      const ang = Math.random() * Math.PI * 2, v = Math.random() * 7 + 2;
+      return {x: cx, y: by, vx: Math.cos(ang) * v, vy: Math.sin(ang) * v - 2, g: .12, life: 1, dec: Math.random() * .012 + .006,
+        s: Math.random() * 2.4 + 1, c: gold[Math.random() * gold.length | 0], tri: Math.random() < .35, rot: Math.random() * 6};
+    });
+    // медленно падающие искры
+    for (let i = 0; i < 60; i++) parts.push({fall: true, x: Math.random() * W, y: Math.random() * H, vy: Math.random() * .6 + .2, s: Math.random() * 1.6 + .5, c: gold[Math.random() * gold.length | 0], tw: Math.random() * 6});
+  }
+  cancelAnimationFrame(pRAF);
+  const tick = () => {
+    ctx.clearRect(0, 0, W, H);
+    parts.forEach(p => {
+      if (p.orbit) {
+        p.a += p.sp; p.tw += .05;
+        const x = cx + Math.cos(p.a) * p.r, y = cy + Math.sin(p.a) * p.r * .92;
+        ctx.globalAlpha = .45 + Math.sin(p.tw) * .35; ctx.fillStyle = p.c;
+        ctx.beginPath(); ctx.arc(x, y, p.s, 0, 7); ctx.fill();
+      } else if (p.fall) {
+        p.y += p.vy; p.tw += .04; if (p.y > H + 5) { p.y = -5; p.x = Math.random() * W; }
+        ctx.globalAlpha = .35 + Math.sin(p.tw) * .3; ctx.fillStyle = p.c;
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.s, 0, 7); ctx.fill();
+      } else if (p.life > 0) {
+        p.vy += p.g; p.vx *= .985; p.vy *= .985; p.x += p.vx; p.y += p.vy; p.life -= p.dec; p.rot += .1;
+        ctx.globalAlpha = Math.max(0, p.life); ctx.fillStyle = p.c;
+        if (p.tri) { ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot); ctx.beginPath(); ctx.moveTo(0, -p.s * 2); ctx.lineTo(p.s * 1.7, p.s * 1.4); ctx.lineTo(-p.s * 1.7, p.s * 1.4); ctx.fill(); ctx.restore(); }
+        else { ctx.beginPath(); ctx.arc(p.x, p.y, p.s, 0, 7); ctx.fill(); }
+      }
+    });
+    ctx.globalAlpha = 1;
+    pRAF = requestAnimationFrame(tick);
+  };
+  tick();
+}
+function stopParticles() { cancelAnimationFrame(pRAF); pRAF = null; const cv = document.getElementById('achCanvas'); cv.getContext('2d').clearRect(0, 0, cv.width, cv.height); }
+
 // ---------- Render ----------
 const catColor = (k, i) => (k === 'inc' ? COLORS_INC : COLORS)[i % (k === 'inc' ? COLORS_INC : COLORS).length];
 const money = n => fmtNum(Math.abs(n));
@@ -722,6 +1026,7 @@ function render() {
   const bal = inc - exp;
   document.getElementById('balance').innerHTML = (bal < 0 ? '−' : '') + money(bal) + '<span class="cur">₽</span>';
   document.getElementById('totalInc').textContent = fmt(inc);
+  renderLevel(inc);
   document.getElementById('totalExp').textContent = fmt(exp);
   const rb = document.getElementById('ribbon');
   rb.classList.toggle('empty', !(inc || exp));
@@ -943,6 +1248,7 @@ function save() {
   closeSheet();
   render();
   if (learned) offerApplyRule(learned);
+  else checkAchievements();
 }
 
 // после исправления категории: предложить поменять похожие операции
@@ -1034,6 +1340,11 @@ document.getElementById('limPicker').onclick = e => {
   limCat = +b.dataset.i; renderLimPicker();
 };
 document.getElementById('limAmount').addEventListener('keydown', e => { if (e.key === 'Enter') saveLimit(); });
+// достижения
+document.getElementById('achOrb').onclick = revealAch;
+document.getElementById('achOrb').onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); revealAch(); } };
+document.getElementById('achClaim').onclick = claimAch;
+document.getElementById('medals').onclick = e => { const b = e.target.closest('.medal-cell'); if (b) replayAchievement(+b.dataset.i); };
 // график
 document.getElementById('rangeTabs').onclick = e => {
   const b = e.target.closest('button'); if (!b) return;
@@ -1250,7 +1561,7 @@ function doImport() {
   const newest = fresh.reduce((m, r) => Math.max(m, r[4]), 0);
   if (newest) { const d = new Date(newest * 1000); viewY = d.getFullYear(); viewM = d.getMonth(); }
   closeSheet(); render();
-  persist().then(() => { haptic('success'); if (tg) tg.showAlert(document.getElementById('sync').dataset.state === 'error' ? 'Операции добавлены, но в облако Telegram не сохранились. Нажмите «Ошибка сохранения» вверху, чтобы повторить.' : `Сохранено: ${fresh.length} ${plural(fresh.length, 'операция', 'операции', 'операций')}`); });
+  persist().then(() => { haptic('success'); if (checkAchievements()) return; if (tg) tg.showAlert(document.getElementById('sync').dataset.state === 'error' ? 'Операции добавлены, но в облако Telegram не сохранились. Нажмите «Ошибка сохранения» вверху, чтобы повторить.' : `Сохранено: ${fresh.length} ${plural(fresh.length, 'операция', 'операции', 'операций')}`); });
 }
 
 function showParseFail() {
@@ -1277,7 +1588,7 @@ document.getElementById('fileInput').onchange = e => {
 };
 document.getElementById('pvClose').onclick = closeSheet;
 
-load().then(render);
+load().then(() => { render(); setTimeout(checkAchievements, 400); });
 </script>
 </body>
 </html>
